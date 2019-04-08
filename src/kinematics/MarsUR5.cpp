@@ -48,82 +48,60 @@ MarsUR5::MarsUR5()
     this->m7 = this->p7.cross(d7);
 
     //Dual quaternion representation of the needed axes in Plucker Coordinates
-    this->dqL6 = DualQuat(Quat(0, this->d6), Quat(0, this->m6));
-    this->dqL7 = DualQuat(Quat(0, this->d7), Quat(0, this->m7));
+    this->DQL6 = DualQuat(Quat(0, this->d6), Quat(0, this->m6));
+    this->DQL7 = DualQuat(Quat(0, this->d7), Quat(0, this->m7));
 
-    //Initialize the values of the Transformaion matrix
+    //Initialize the current states
+    this->q = VectorXd::Zero(10);
     this->T0e = Eigen::Matrix4d::Zero();
     this->T0e(3, 3) = 1.0;
+    this->JBar = MatrixXd::Zero(6,9);
+    this->Ja = MatrixXd::Zero(6,6);
+    JBarEvaluated = false;
+    JaEvaluated = false;
+
+    //Initialize the elements for manipulability calculations to zero (To reserve the memory)
+    dJdq3 = JBar, dJdq5 = JBar, dJdq6 = JBar, dJdq7 = JBar, dJdq8 = JBar, dJdq9 = JBar;
+    dJadq5 = JBar, dJadq6 = JBar, dJadq7 = JBar, dJadq8 = JBar, dJadq9 = JBar;
+	dP = dPa = VectorXd::Zero(10);
 }
 
-Eigen::Matrix4d MarsUR5::forwardKin(const Eigen::VectorXd &q)
+void MarsUR5::setJointPositions(const Eigen::VectorXd& q)
 {
     if (q.size() != 10) //The size of the
     {
         throw "The angles of the 10 joints are required";
     }
+    this->q = q;
+    JBarEvaluated = false;
+    JaEvaluated = false;
+}
 
+Eigen::Matrix4d MarsUR5::getEETransform()
+{
     //Dual quaternion rigid body transformmations for mobile platform and prismatic joint
     Vector3d t(q(0), q(1), q(3));
     //Translation and rotation quaternions
-    Quat qrot = Quat::rotationOperator(q(2), Vector3d(0, 0, 1));
-    Quat qt(0, t);
+    Quat Qrot = Quat::rotationOperator(q(2), Vector3d(0, 0, 1));
+    Quat Qt(0, t);
     //Composite operator
-    DualQuat dqmp(qrot, 0.5*qt*qrot);
-
-    /*cout << "qrot:" << endl << qrot << endl;
-    cout << "qt:" << endl << qt << endl;*/
-    cout << "dqmp:" << endl << dqmp << endl;
-    
+    DualQuat DQmp(Qrot, 0.5*Qt*Qrot);
+   
     //Dual quaternion rigid body trasnformations for UR5
-    dQ1 = DualQuat::rigidTransf(q(4), d1, m1);
-    dQ2 = DualQuat::rigidTransf(q(5), d2, m2);
-    dQ3 = DualQuat::rigidTransf(q(6), d3, m3);
-    dQ4 = DualQuat::rigidTransf(q(7), d4, m4);
-    dQ5 = DualQuat::rigidTransf(q(8), d5, m5);
-    dQ6 = DualQuat::rigidTransf(q(9), d6, m6);
-
-    cout << "dq1: " << endl << dQ1 << endl;
-    cout << "dq2: " << endl << dQ2 << endl;
-    cout << "dq3: " << endl << dQ3 << endl;
-    cout << "dq4: " << endl << dQ4 << endl;
-    cout << "dq5: " << endl << dQ5 << endl;
-    cout << "dq6: " << endl << dQ6 << endl;
+    DQ1 = DualQuat::rigidTransf(q(4), d1, m1);
+    DQ2 = DualQuat::rigidTransf(q(5), d2, m2);
+    DQ3 = DualQuat::rigidTransf(q(6), d3, m3);
+    DQ4 = DualQuat::rigidTransf(q(7), d4, m4);
+    DQ5 = DualQuat::rigidTransf(q(8), d5, m5);
+    DQ6 = DualQuat::rigidTransf(q(9), d6, m6);
 
     //******************** Rigid Transfomation ******************//
-    DualQuat Qtotal = dqmp * dQ1 * dQ2 * dQ3 * dQ4 * dQ5 * dQ6;
-    DualQuat Qtotalc = Qtotal.conj();
-
-    cout << "Qtotal: " << endl << Qtotal << endl;
+    DualQuat DQtotal = DQmp * DQ1 * DQ2 * DQ3 * DQ4 * DQ5 * DQ6;
+    DualQuat DQtotalc = DQtotal.conj();
 
     //Rotate L6 and L7 using the rigid transformation operator
-    DualQuat newQL6 = Qtotal * dqL6 * Qtotalc;
-    DualQuat newQL7 = Qtotal * dqL7 * Qtotalc;
-
-
-    /*cout << "p6: " << endl << p6 << endl;
-    cout << "d6: " << endl << d6 << endl;
-    cout << "p7: " << endl << p7 << endl;
-    cout << "d7: " << endl << d7 << endl;*/
-    cout << "dqL6: " << endl << dqL6 << endl;
-    cout << "newQL6: " << endl << newQL6 << endl;
-    cout << "dqL7: " << endl << dqL7 << endl;
-    cout << "newQL7: " << endl << newQL6 << endl;
-
-    cout << "p1: " << endl << p1 << endl;
-    cout << "d1: " << endl << d1 << endl;
-    cout << "p2: " << endl << p2 << endl;
-    cout << "d2: " << endl << d2 << endl;
-    cout << "p3: " << endl << p3 << endl;
-    cout << "d3: " << endl << d3 << endl;
-    cout << "p4: " << endl << p4 << endl;
-    cout << "d4: " << endl << d4 << endl;
-    cout << "p5: " << endl << p5 << endl;
-    cout << "d5: " << endl << d5 << endl;
-    cout << "p6: " << endl << p6 << endl;
-    cout << "d6: " << endl << d6 << endl;
-    cout << "p7: " << endl << p6 << endl;
-    cout << "d7: " << endl << d6 << endl;
+    DualQuat newQL6 = DQtotal * DQL6 * DQtotalc;
+    DualQuat newQL7 = DQtotal * DQL7 * DQtotalc;
 
     //Get the position from intersection of L6 and L7 and the directions from the vectors
     Eigen::Vector3d pos = DualQuat::linesIntPlucker(newQL6, newQL7); //Position
@@ -136,6 +114,43 @@ Eigen::Matrix4d MarsUR5::forwardKin(const Eigen::VectorXd &q)
     this->T0e.col(1).head(3) = orientation;
     this->T0e.col(2).head(3) = approach;
     this->T0e.col(3).head(3) = pos;
-
     return this->T0e;
 }
+
+void MarsUR5::getManipGradients(VectorXd &MM_dP, double &MM_manip, VectorXd &UR5_dP, double &UR5_manip)
+{
+    // Make sure the Jacobians and their derivatives have been evaluated
+    evalJacobians();
+    evalJacobiansDer();
+
+    // Manipulability and gradient of JBar
+    MatrixXd JBarT = JBar.transpose();
+    MatrixXd JJt = JBar*JBarT;
+    double w = sqrt(JJt.determinant());
+    double w_2 = w/2.0;
+    MatrixXd inv_JJt = JJt.inverse();
+    MM_manip = w;
+    MM_dP = VectorXd::Zero(10);
+    MM_dP(2) = w_2 * (inv_JJt * (dJdq3*JBarT + JBar*(dJdq3.transpose()))).trace();
+    MM_dP(4) = w_2 * (inv_JJt * (dJdq5*JBarT + JBar*(dJdq5.transpose()))).trace();
+    MM_dP(5) = w_2 * (inv_JJt * (dJdq6*JBarT + JBar*(dJdq6.transpose()))).trace();
+    MM_dP(6) = w_2 * (inv_JJt * (dJdq7*JBarT + JBar*(dJdq7.transpose()))).trace();
+    MM_dP(7) = w_2 * (inv_JJt * (dJdq8*JBarT + JBar*(dJdq8.transpose()))).trace();
+    MM_dP(8) = w_2 * (inv_JJt * (dJdq9*JBarT + JBar*(dJdq9.transpose()))).trace();
+
+    // Manipulability and gradient of Ja
+    double wa = abs(Ja.determinant());
+    MatrixXd inv_Ja = Ja.inverse();
+    UR5_manip = wa;
+    UR5_dP = VectorXd::Zero(10);
+    UR5_dP(4) = wa * (inv_Ja*dJadq5).trace();
+    UR5_dP(5) = wa * (inv_Ja*dJadq6).trace();
+    UR5_dP(6) = wa * (inv_Ja*dJadq7).trace();
+    UR5_dP(7) = wa * (inv_Ja*dJadq8).trace();
+    UR5_dP(8) = wa * (inv_Ja*dJadq9).trace();
+}
+
+
+
+
+

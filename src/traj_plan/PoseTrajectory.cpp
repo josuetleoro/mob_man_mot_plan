@@ -14,6 +14,11 @@ std::vector<double> PoseTrajectory::getTrajPosition(char sel)
         return y;
     case 'z':
         return z;
+    default:
+        string errStr = "The required position: ";
+        errStr.append(1, sel);
+        errStr.append(" does not exist.");
+        throw errStr;
     }
 }
 
@@ -27,6 +32,11 @@ std::vector<double> PoseTrajectory::getTrajLinVel(char sel)
         return dy;
     case 'z':
         return dz;
+    default:
+        string errStr = "The required linear velocity: ";
+        errStr.append(1, sel);
+        errStr.append(" does not exist.");
+        throw errStr;
     }
 }
 
@@ -40,6 +50,11 @@ std::vector<double> PoseTrajectory::getTrajLinAcc(char sel)
         return ddy;
     case 'z':
         return ddz;
+    default:
+        string errStr = "The required linear acceleration: ";
+        errStr.append(1, sel);
+        errStr.append(" does not exist.");
+        throw errStr;
     }
 }
 

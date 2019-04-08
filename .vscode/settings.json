@@ -41,7 +41,8 @@
         "typeinfo": "cpp",
         "utility": "cpp",
         "optional": "cpp",
-        "system_error": "cpp"
+        "system_error": "cpp",
+        "core": "cpp"
     },
     "cmake.configureOnOpen": false
 }

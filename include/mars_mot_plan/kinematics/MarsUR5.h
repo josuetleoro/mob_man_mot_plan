@@ -25,24 +25,54 @@ private:
 	Eigen::Vector3d m1, m2, m3, m4, m5, m6, m7, m8;
 
 	//Dual-quaternion representation of each axis of the UR5
-	DualQuat dQ1, dQ2, dQ3, dQ4, dQ5, dQ6;
-
+	DualQuat DQ1, DQ2, DQ3, DQ4, DQ5, DQ6;
     // Dual Quaternion for mobile platform
-    DualQuat dqmp;
-
+    DualQuat DQmp;
 	//Dual-quaternion representation in plucker coordinates of the tool axes
-    DualQuat dqL6;	//approach direction
-	DualQuat dqL7;	//orientation direction
+    DualQuat DQL6;	//approach direction
+	DualQuat DQL7;	//orientation direction
 
-	//Current position and orientation matrix
-	Eigen::Matrix4d T0e;	
+	//Current states
+	Eigen::VectorXd q;   	//Joints
+	Eigen::Matrix4d T0e;	//End effector transformation matrix
+	Eigen::MatrixXd JBar;	//Jacobian with non-holonomic constraints
+	Eigen::MatrixXd Ja;		//UR5 Jacobian
+	bool JBarEvaluated, JaEvaluated;		//Helper to avoid evaluating JBar multiple times
+	/**
+	 * Evaluate the Jacobian of the complete Mobile manipulator system 
+	 * with non-holonomic constraints included
+	 */
+	void evalJBar();
+	/**
+	 * Evaluate the Jacobian of the robot arm alone
+	 */
+	void evalJa();
+
+	//For manipulability gradient
+	//Derivative of JacobianBar with respect to the joints
+	Eigen::MatrixXd dJdq3, dJdq5, dJdq6, dJdq7, dJdq8, dJdq9;
+	//Derivative of UR5J with respect to the joints
+	Eigen::MatrixXd dJadq5, dJadq6, dJadq7, dJadq8, dJadq9;
+	double w, wa;			 //Mars manip and arm manip
+	Eigen::VectorXd dP, dPa; //gradient of Mars manip and arm manip
+	void evalJacobians();
+	void evalJacobiansDer();
 
 public:
 	MarsUR5();
-    Eigen::Matrix4d forwardKin(const Eigen::VectorXd& q);
-protected:
-	Eigen::Vector3d LinesIntersection(DualQuat dqL1, DualQuat dqL2);
+	void setJointPositions(const Eigen::VectorXd& q);
+    Eigen::Matrix4d getEETransform();
+	Eigen::MatrixXd getJacobianBar()
+	{
+		evalJBar();
+		return JBar;
+	}
+	Eigen::MatrixXd getJacobianUR5()
+	{
+		evalJa();
+		return Ja;
+	}
+	void getManipGradients(VectorXd &MM_dP, double &MM_manip, VectorXd &UR5_dP, double &UR5_manip);
 };
-
 
 #endif
