@@ -1,5 +1,7 @@
-#include "mars_mot_plan/MarsUR5.h"
-#include "mars_mot_plan/PolynomInterp.h"
+#include "mars_mot_plan/kinematics/MarsUR5.h"
+#include "mars_mot_plan/kinematics/Pose.h"
+#include "mars_mot_plan/traj_plan/TrajPlan.h"
+#include "mars_mot_plan/traj_plan/PoseTrajectory.h"
 #include "matplotlibcpp.h"
 #include <vector>
 
@@ -20,7 +22,7 @@ namespace plt = matplotlibcpp;
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "mars_mot_plan");
-    ros::NodeHandle nhLocal("~");
+    ros::NodeHandle nh("~");
     MarsUR5 robot;
 
     /*
@@ -74,88 +76,138 @@ int main(int argc, char **argv)
 
     cout << "Execution time: " << time_ns / 1000.0 / n << "us" << endl;
     cout << T0e << endl;*/
-
+    
     /*
         **********************************************************
-        ************* Position trajectory planning ***************
+        **************** Pose trajectory planning ****************
         **********************************************************
     */
-    
-    /*high_resolution_clock::time_point start = high_resolution_clock::now();
-    
-    double x0 = 0, xf=5, t0=0, tf=10, ts=0.01;
-    std::vector<double> x, dx, ddx, time;
-    PolynomInterp::fithOrderInterp(x0, 0, 0, xf, 0, 0, 0, tf, ts, x, dx, ddx, time);
-    high_resolution_clock::time_point end = high_resolution_clock::now();
-    
-    
-    //Calculate the execution time in us
-    double time_ns = (double)(duration_cast<nanoseconds>(end - start).count());
-    cout << "Execution time: " << time_ns / 1000.0 << "us" << endl;
-
-    //plt::figure_size(1200, 780);
-    plt::subplot(3, 1, 1);
-    plt::plot(time,x);
-    plt::subplot(3, 1, 2);
-    plt::plot(time,dx);
-    plt::subplot(3, 1, 3);
-    plt::plot(time,ddx);
-    plt::show();*/
-
-    /*
-        **********************************************************
-        ************ Orientation trajectory planning *************
-        **********************************************************
-    */
-
 
     high_resolution_clock::time_point start = high_resolution_clock::now();
     
-    double t0=0, tf=7, ts=0.02;
-    Quat q0(0.0, -0.7071, 0.7071, 0.0);
-    Quat qf(0.5, 0.5, 0.5, -0.5);
+    Pose pose0(Vector3d(0.3830, 0.1091, 0.9137),Quat(0,-0.7071,0.7071,0));
+    Pose posef(Vector3d(1.0, -0.8, 0.4),Quat(0.5,0.5,0.5,-0.5));    
+    double t0=0, tf=18, ts=0.02; 
+    PoseTrajectory desired_trajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+                              posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+                              t0, tf, ts);
+    double N = desired_trajectory.size();
 
-    std::vector<double> time;
-    std::vector<Quat> quat;
-    std::vector<Vector3d> w, dw;
-
-    PolynomInterp::quatPolynomInterp(q0, Vector3d::Zero(), Vector3d::Zero(), qf, Vector3d::Zero(), Vector3d::Zero(), t0, tf, ts, quat, w, dw, time);
     high_resolution_clock::time_point end = high_resolution_clock::now();
     
     //Calculate the execution time in us
     double time_ns = (double)(duration_cast<nanoseconds>(end - start).count());
     cout << "Execution time: " << time_ns / 1000.0 << "us" << endl;
 
-    //Extract parts of the quaternion
-    std::vector<double> quat_w, quat_x, quat_y, quat_z;
-    double N = quat.size();
-    std::vector<Quat>::iterator it;
-    for (it = quat.begin(); it != quat.end(); it++)
-    {
-        quat_w.push_back((*it).w);
-        quat_x.push_back((*it).x);
-        quat_y.push_back((*it).y);
-        quat_z.push_back((*it).z);        
-    }
+    //Plot position and linear velocities
+    plt::figure(1);
+    plt::suptitle("Position");
+    plt::subplot(3, 1, 1);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajPosition('x'));
+    plt::ylabel("x");
+    plt::grid(true);
+    plt::subplot(3, 1, 2);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajPosition('y'));
+    plt::ylabel("y");
+    plt::grid(true);
+    plt::subplot(3, 1, 3);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajPosition('z'));    
+    plt::ylabel("z");
+    plt::grid(true);
+    plt::xlabel("time");
 
-    cout << "size(quat): " << quat.size() << endl;
-    cout << "size(quat_w): " << quat_w.size() << endl;
-    cout << "size(time): " << time.size() << endl;
+    plt::figure(2);
+    plt::suptitle("Linear velocities");
+    plt::subplot(3, 1, 1);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajLinVel('x'));
+    plt::ylabel("dx");
+    plt::grid(true);
+    plt::subplot(3, 1, 2);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajLinVel('y'));
+    plt::ylabel("dy");
+    plt::grid(true);
+    plt::subplot(3, 1, 3);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajLinVel('z'));
+    plt::ylabel("dz");
+    plt::grid(true);
+    plt::xlabel("time");
 
-    //plt::figure_size(1200, 780);
+    //Plot orientation and angular velocities
+    plt::figure(3);
+    plt::suptitle("Orientation(quaternion)");
     plt::subplot(2, 2, 1);
-    plt::plot(time,quat_w);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajOrientation('w'));
+    plt::ylabel("w");
     plt::grid(true);
     plt::subplot(2, 2, 2);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajOrientation('x'));
+    plt::ylabel("x");
     plt::grid(true);
-    plt::plot(time,quat_x);
     plt::subplot(2, 2, 3);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajOrientation('y'));
+    plt::ylabel("y");
     plt::grid(true);
-    plt::plot(time,quat_y);
     plt::subplot(2, 2, 4);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajOrientation('z'));
+    plt::ylabel("z");
     plt::grid(true);
-    plt::plot(time,quat_z);
+    plt::xlabel("time");
+
+    plt::figure(4);
+    plt::suptitle("Angular velocities");
+    plt::subplot(3, 1, 1);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajAngVel('x'));
+    plt::ylabel("wx");
+    plt::grid(true);
+    plt::subplot(3, 1, 2);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajAngVel('y'));
+    plt::ylabel("wy");
+    plt::grid(true);
+    plt::subplot(3, 1, 3);
+    plt::plot(desired_trajectory.getTrajTime(),desired_trajectory.getTrajAngVel('z'));
+    plt::ylabel("wz");
+    plt::grid(true);
     plt::show();
+    plt::xlabel("time");
+
+    /*
+        **********************************************************
+        **************** Step size variation law  ****************
+        **********************************************************
+    */
+    /*double tb = tf*(1-0.15);
+    double T = tf - tb;
+    double a0=1, a1=0, a2=0, a3=-10/pow(T,3), a4=15/pow(T,4), a5=-6/pow(T,5);
+    std::vector<double> step_size_trans;
+    double max = 0.5;
+    double delta_time;
+    {
+        int k;
+        double t;
+        for (k=0, t=0; k < N; k++, t+=ts)
+        {
+            if (k > N/2)
+            {
+                if (k > N*(1-0.15))
+                {
+                    delta_time = t - tb;
+                    step_size_trans.push_back(a0+a1*(delta_time)+a2*pow(delta_time,2)+a3*pow(delta_time,3)+a4*pow(delta_time,4)+a5*pow(delta_time,5));
+                }
+                else
+                {
+                    step_size_trans.push_back(1.0);
+                }
+            }
+            else
+            {
+                step_size_trans.push_back(max);
+            }
+        }
+    }
+
+    plt::plot(desired_trajectory.getTrajTime(),step_size_trans);
+    plt::show();*/
+
 
     return 0;
 }

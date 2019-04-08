@@ -1,10 +1,10 @@
-#include "mars_mot_plan/PolynomInterp.h"
+#include "mars_mot_plan/traj_plan/TrajPlan.h"
 //#include <iostream>
 
 using namespace std;
 using namespace Eigen;
 
-void PolynomInterp::fithOrderInterp(double qi, double dqi, double ddqi, double qf, double dqf, double ddqf, double ti, double tf, double ts, std::vector<double> &q, std::vector<double> &dq, std::vector<double> &ddq, std::vector<double> &time)
+void TrajPlan::fithOrderInterp(double qi, double dqi, double ddqi, double qf, double dqf, double ddqf, double ti, double tf, double ts, std::vector<double> &q, std::vector<double> &dq, std::vector<double> &ddq, std::vector<double> &time)
 {
     //Calculate the coefficients
     std::vector<double> coef = polynomCoef(qi, dqi, ddqi, qf, dqf, ddqf, ti, tf);
@@ -34,7 +34,7 @@ void PolynomInterp::fithOrderInterp(double qi, double dqi, double ddqi, double q
     cout << "m: " << m << endl;
 }
 
-std::vector<double> PolynomInterp::polynomCoef(double qi, double dqi, double ddqi, double qf, double dqf, double ddqf, double ti, double tf)
+std::vector<double> TrajPlan::polynomCoef(double qi, double dqi, double ddqi, double qf, double dqf, double ddqf, double ti, double tf)
 {
     std::vector<double> coef;
     coef.resize(6);
@@ -50,22 +50,22 @@ std::vector<double> PolynomInterp::polynomCoef(double qi, double dqi, double ddq
     return coef;
 }
 
-double PolynomInterp::qPol(double t, std::vector<double> coef)
+double TrajPlan::qPol(double t, std::vector<double> coef)
 {
     return coef[0]+coef[1]*t+coef[2]*t*t+coef[3]*t*t*t+coef[4]*t*t*t*t+coef[5]*t*t*t*t*t;    
 }
     
-double PolynomInterp::dqPol(double t, std::vector<double> coef)
+double TrajPlan::dqPol(double t, std::vector<double> coef)
 {
     return coef[1]+2*coef[2]*t+3*coef[3]*t*t+4*coef[4]*t*t*t+5*coef[5]*t*t*t*t;
 }
     
-double PolynomInterp::ddqPol(double t, std::vector<double> coef)
+double TrajPlan::ddqPol(double t, std::vector<double> coef)
 {
     return 2*coef[2]+6*coef[3]*t+12*coef[4]*t*t+20*coef[5]*t*t*t;
 }
 
-void PolynomInterp::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat qf, Vector3d wf, Vector3d dwf, double ti, double tf, double ts, std::vector<Quat> &quat, std::vector<Vector3d> &w, std::vector<Vector3d> &dw, std::vector<double> &time)
+void TrajPlan::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat qf, Vector3d wf, Vector3d dwf, double ti, double tf, double ts, std::vector<Quat> &quat, std::vector<Vector3d> &w, std::vector<Vector3d> &dw, std::vector<double> &time)
 {
     // Initialization
     Quat qwi = Quat(0, wi);
@@ -99,6 +99,7 @@ void PolynomInterp::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat q
     w[0]=wi;
     dw[0]=dwi;
     time[0]=ti;
+    //cout << "quat size: " << quat.size() << endl;
     Quat q_k_plus_1, dq_k_plus_1, ddq_k_plus_1, qwk_plus_1, dqwk_plus_1;
     double tk_plus_1, tau, ti_hat = ti;
     for (int k=0; k < m; k++)
@@ -130,17 +131,17 @@ void PolynomInterp::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat q
     }
 }
 
-Quat PolynomInterp::quatDerNorm(Quat w, double dN, Quat q)
+Quat TrajPlan::quatDerNorm(Quat w, double dN, Quat q)
 {
     return 0.5*w*q + dN*q;
 }
 
-Quat PolynomInterp::quatSecDerNorm(Quat w, Quat dw, double dN, double ddN, Quat q)
+Quat TrajPlan::quatSecDerNorm(Quat w, Quat dw, double dN, double ddN, Quat q)
 {
     return 0.5*dw*q + dN*w*q - 0.25*w.getV().norm()*q + ddN*q;
 }
 
-std::vector<Quat> PolynomInterp::quatPolynomCoef(Quat qk, Quat qwk, Quat dqwk, Quat qf, Quat dqf, Quat ddqf, double tk, double tf)
+std::vector<Quat> TrajPlan::quatPolynomCoef(Quat qk, Quat qwk, Quat dqwk, Quat qf, Quat dqf, Quat ddqf, double tk, double tf)
 {
     std::vector<Quat> coef;
     coef.resize(6);
@@ -156,12 +157,12 @@ std::vector<Quat> PolynomInterp::quatPolynomCoef(Quat qk, Quat qwk, Quat dqwk, Q
     return coef;
 }
 
-Quat PolynomInterp::quatPol(double tau, std::vector<Quat> coef)
+Quat TrajPlan::quatPol(double tau, std::vector<Quat> coef)
 {
     return pow(1-tau,3)*(coef[0]+coef[1]*tau+coef[2]*tau*tau)+tau*tau*tau*(coef[3]+coef[4]*(1-tau)+coef[5]*(1-tau)*(1-tau));
 }
 
-Quat PolynomInterp::dquatPol(double t, double ti, double tf, std::vector<Quat> coef)
+Quat TrajPlan::dquatPol(double t, double ti, double tf, std::vector<Quat> coef)
 {
     double t_ti = t-ti;
     double tf_ti = tf-ti;
@@ -178,7 +179,7 @@ Quat PolynomInterp::dquatPol(double t, double ti, double tf, std::vector<Quat> c
     (t-ti)^3*(-1*p4/(tf-ti)-2*p5*(1-(t-ti)/(tf-ti))/(tf-ti))/(tf-ti)^3;*/
 }
 
-Quat PolynomInterp::ddquatPol(double t, double ti, double tf, std::vector<Quat> coef)
+Quat TrajPlan::ddquatPol(double t, double ti, double tf, std::vector<Quat> coef)
 {
     double t_ti = t-ti;
     double tf_ti = tf-ti;
@@ -198,4 +199,46 @@ Quat PolynomInterp::ddquatPol(double t, double ti, double tf, std::vector<Quat> 
     +6*(t-ti)^2*(-1*p4/(tf-ti)-2*p5*(1-(t-ti)/(tf-ti))/(tf-ti))/(tf-ti)^3
     +2*(t-ti)^3*p5/(tf-ti)^5;    */    
 }
+
+/*void TrajPlan::posePolynomInterp(Pose posei, Vector3d linVeli, Vector3d linAcci, Vector3d angVeli, Vector3d angAcci,
+                                 Pose posef, Vector3d linVelf, Vector3d linAccf, Vector3d angVelf, Vector3d angAccf,
+                                 double ti, double tf, double ts,
+                                 std::vector<Pose> &pose_traj, std::vector<Vector3d> &dpos, std::vector<Vector3d> &ddpos, std::vector<Vector3d> &w, std::vector<Vector3d> &dw, std::vector<double> &time)
+{
+
+    // Position
+    // x
+    std::vector<double> x, dx, ddx, time;
+    PolynomInterp::fithOrderInterp(posei.position(0), linVeli(0), linAcci(0), posef.position(0), linVelf(0), linAccf(0), ti, tf, ts, x, dx, ddx, time);
+    // y
+    std::vector<double> y, dy, ddy;
+    PolynomInterp::fithOrderInterp(posei.position(1), linVeli(1), linAcci(1), posef.position(1), linVelf(1), linAccf(1), ti, tf, ts, y, dy, ddy, time);
+    // z
+    std::vector<double> z, dz, ddz;
+    PolynomInterp::fithOrderInterp(posei.position(2), linVeli(2), linAcci(2), posef.position(2), linVelf(2), linAccf(2), ti, tf, ts, y, dy, ddy, time);
+
+    // Orientation
+    std::vector<Quat> quat;
+    std::vector<Vector3d> w, dw;
+    TrajPlan::quatPolynomInterp(posei.orientation, angVeli, angAcci, posef.orientation, angVelf, angAccf, ti, tf, ts, quat, w, dw, time);
+    high_resolution_clock::time_point end = high_resolution_clock::now();
+    
+    // Store the trajectory in the corresponding vectors
+    double N = time.size();
+    pose_traj.reserve(N);
+    dpos.reserve(N);
+    for (int k=0; k<N; k++)
+    {
+        pose_traj(k).position = Vector3d(x(k), y(k), z(k));
+        pose_traj(k).orientation = quat(k);
+        
+
+    }
+
+    cout << "size(quat): " << quat.size() << endl;
+    cout << "size(quat_w): " << quat_w.size() << endl;
+    cout << "size(time): " << time.size() << endl;
+
+
+}*/
 

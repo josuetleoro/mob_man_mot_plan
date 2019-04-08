@@ -52,7 +52,9 @@ set(SOURCE_FILES
   src/kinematics/DualQuat.cpp 
   src/kinematics/PadenKahan.cpp 
   src/kinematics/MarsUR5.cpp
-  src/kinematics/PolynomInterp.cpp
+  src/kinematics/Pose.cpp
+  src/traj_plan/TrajPlan.cpp
+  src/traj_plan/PoseTrajectory.cpp
 )
 
 add_executable(mobman_mot_plan_node src/mobman_mot_plan.cpp ${SOURCE_FILES})

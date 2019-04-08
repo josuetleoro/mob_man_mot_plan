@@ -1,5 +1,5 @@
-#include "mars_mot_plan/MarsUR5.h"
-#include "mars_mot_plan/PadenKahan.h"
+#include "mars_mot_plan/kinematics/MarsUR5.h"
+#include "mars_mot_plan/kinematics/PadenKahan.h"
 
 #define _USE_MATH_DEFINES // for the PI constant
 #include <math.h>

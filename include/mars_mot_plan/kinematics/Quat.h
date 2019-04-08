@@ -19,14 +19,15 @@ public:
 	Quat(double w, Vector3d v);
 	double getS();
 	Vector3d getV();	
-	double norm();
-	double squaredNorm();
+	double norm() const;
+	double squaredNorm() const;
 	void normalize();
-	Quat conj();
-	Quat inv();
-	Quat operator+ (const Quat& q2);
-	Quat operator- (const Quat& q2);
-	Quat operator* (const Quat& q2); //Quaternion-quaternion multiplication
+	Quat conj() const;
+	Quat inv() const;
+	Quat operator+ (const Quat& q2) const;
+	Quat operator- (const Quat& q2) const;
+	Quat operator* (const Quat& q2) const; //Quaternion-quaternion multiplication
+	//friend Quat operator* (const Quat &q1, const Quat &q2); 		//Quaternion-quaternion multiplication
 	friend Quat operator* (const double scalar, const Quat& q); //Scalar-quaternion multiplication
 	friend Quat operator* (const Quat& q, const double scalar); //Quaternion-scalar multiplication
 	friend Quat operator/ (const Quat& q, const double scalar); //Quaternion-scalar division	

@@ -1,4 +1,4 @@
-#include "mars_mot_plan/Quat.h"
+#include "mars_mot_plan/kinematics/Quat.h"
 using namespace std;
 
 Quat::Quat()
@@ -35,12 +35,12 @@ Eigen::Vector3d Quat::getV()
 	return Eigen::Vector3d(this->x,this->y,this->z);
 }
 
-double Quat::norm()
+double Quat::norm() const
 {
 	return sqrt(this->w*this->w+this->x*this->x+this->y*this->y+this->z*this->z);
 }
 
-double Quat::squaredNorm()
+double Quat::squaredNorm() const
 {
 	return this->w*this->w+this->x*this->x+this->y*this->y+this->z*this->z;
 }
@@ -54,17 +54,17 @@ void Quat::normalize()
 	this->z = this->z/n;
 }
 
-Quat Quat::conj()
+Quat Quat::conj() const
 {
 	return Quat(this->w,-1*this->x,-1*this->y,-1*this->z);
 }
 
-Quat Quat::inv()
+Quat Quat::inv() const
 {
 	return this->conj()/this->squaredNorm();
 }
 
-Quat Quat::operator+ (const Quat& q2)
+Quat Quat::operator+ (const Quat& q2) const
 {
 	return Quat(this->w + q2.w,
 				this->x + q2.x,
@@ -72,7 +72,7 @@ Quat Quat::operator+ (const Quat& q2)
 				this->z + q2.z);
 }
 
-Quat Quat::operator-(const Quat & q2)
+Quat Quat::operator-(const Quat & q2) const
 {
 	return Quat(this->w - q2.w,
 		this->x - q2.x,
@@ -80,7 +80,7 @@ Quat Quat::operator-(const Quat & q2)
 		this->z - q2.z);
 }
 
-Quat Quat::operator*(const Quat & q2)
+Quat Quat::operator*(const Quat & q2) const
 {
 	return Quat(this->w*q2.w-this->x*q2.x-this->y*q2.y-this->z*q2.z,
 		this->w*q2.x + this->x*q2.w + this->y*q2.z - this->z*q2.y,
@@ -101,8 +101,6 @@ Vector3d Quat::rotVector(Vector3d v)
 	Vector3d t = 2 * qV.cross(v);	
 	return v + this->getS()*t + qV.cross(t);
 }
-
-
 
 Quat operator*(const double scalar, const Quat & q)
 {

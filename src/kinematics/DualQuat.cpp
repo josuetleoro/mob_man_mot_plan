@@ -1,4 +1,4 @@
-#include "mars_mot_plan/DualQuat.h"
+#include "mars_mot_plan/kinematics/DualQuat.h"
 
 DualQuat::DualQuat()
 {

@@ -4,7 +4,7 @@
 #include <math.h>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
-#include "mars_mot_plan/DualQuat.h"
+#include "mars_mot_plan/kinematics/DualQuat.h"
 using namespace std;
 
 class MarsUR5
