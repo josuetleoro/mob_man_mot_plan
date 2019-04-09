@@ -85,11 +85,19 @@ public:
     {
         return time;
     }
-   
+
     /**
      * Returns the kth pose of the trajectory.
      */
-    VectorXd poseAt(int k)
+    Pose poseAt(int k)
+    {
+        return poses.at(k);
+    }
+   
+    /**
+     * Returns the kth pose of the trajectory in vector representation.
+     */
+    VectorXd poseVecAt(int k)
     {
         return poses_vec_rep.at(k);
     }

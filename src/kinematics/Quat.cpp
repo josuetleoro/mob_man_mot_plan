@@ -25,12 +25,20 @@ Quat::Quat(double w, Eigen::Vector3d v)
 	this->z = v(2);
 }
 
-double Quat::getS()
+Quat::Quat(Quaterniond eigen_quat)
+{
+	this->w = eigen_quat.w();
+	this->x = eigen_quat.vec()(0);
+	this->y = eigen_quat.vec()(1);
+	this->z = eigen_quat.vec()(2);
+}
+
+double Quat::getS() const
 {
 	return this->w;
 }
 
-Eigen::Vector3d Quat::getV()
+Eigen::Vector3d Quat::getV() const
 {
 	return Eigen::Vector3d(this->x,this->y,this->z);
 }
@@ -122,7 +130,7 @@ Quat Quat::rotationOperator(double angle, Eigen::Vector3d axis)
 	return Quat(cos(angle * 0.5), sin(angle * 0.5)*axis);
 }
 
-Quat rotm2quat(Matrix3d R)
+Quat Quat::rotm2quat(Matrix3d R)
 {
 	//Validate the rotation matrix
 	bool isOrthonormal;
@@ -134,6 +142,11 @@ Quat rotm2quat(Matrix3d R)
 		throw "Received rotation matrix is not valid";
 	}
 	Quaterniond q(R);
+	if (q.w() < 0)
+    {
+        q.w() = -1*q.w();
+		q.vec() = -1*q.vec();
+    }
 	return Quat(q.w(), q.vec());
 }
 

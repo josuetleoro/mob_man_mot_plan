@@ -17,8 +17,9 @@ public:
 	Quat();
 	Quat(double w, double x, double y, double z);
 	Quat(double w, Vector3d v);
-	double getS();
-	Vector3d getV();	
+	Quat(Quaterniond eigen_quat);
+	double getS() const;
+	Vector3d getV() const;
 	double norm() const;
 	double squaredNorm() const;
 	void normalize();

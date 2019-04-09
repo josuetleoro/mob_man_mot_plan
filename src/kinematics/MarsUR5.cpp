@@ -60,10 +60,43 @@ MarsUR5::MarsUR5()
     JBarEvaluated = false;
     JaEvaluated = false;
 
-    //Initialize the elements for manipulability calculations to zero (To reserve the memory)
+    // Initialize the varibales for manipulability calculations to zero (To reserve the memory)
     dJdq3 = JBar, dJdq5 = JBar, dJdq6 = JBar, dJdq7 = JBar, dJdq8 = JBar, dJdq9 = JBar;
     dJadq5 = JBar, dJadq6 = JBar, dJadq7 = JBar, dJadq8 = JBar, dJadq9 = JBar;
 	dP = dPa = VectorXd::Zero(10);
+
+    // Initialize variables for joint limits avoidance and collision avoidance
+    qlimits = MatrixXd::Zero(9,2);
+    qlimits(0,0) = -1*Infinity; qlimits(0,1) = Infinity;
+    qlimits(1,0) = -1*Infinity; qlimits(1,1) = Infinity;
+    qlimits(2,0) = 0.0; qlimits(2,1) = 0.25;
+    qlimits(3,0) = -100*M_PI/180; qlimits(3,1) = 1*M_PI/180;
+    qlimits(4,0) = -90*M_PI/180; qlimits(4,1) = 15*M_PI/180;
+    qlimits(5,0) = 0*M_PI/180; qlimits(5,1) = 180*M_PI/180;
+    qlimits(6,0) = -2*M_PI/180; qlimits(6,1) = 2*M_PI/180;
+    qlimits(7,0) = -2*M_PI/180; qlimits(7,1) = 2*M_PI/180;
+    qlimits(8,0) = -2*M_PI/180; qlimits(8,1) = 2*M_PI/180;
+    jLimBeta = 50;
+    prevGradHJLim = VectorXd::Zero(9);
+
+    // Initialize the variables for self-collision avoidance
+    elbowSafeDist = 0.6; wristSafeDist = 0.37;
+    JElbow = VectorXd::Zero(9);
+    JWrist = VectorXd::Zero(9);
+    prevGradPElbow = VectorXd::Zero(9);
+    prevGradPWrist = VectorXd::Zero(9);
+
+    // Initialize the variables for joint velocities limit avoidance
+    dqlimits = VectorXd::Zero(9);
+    dqlimits(0) = 0.6;
+    dqlimits(1) = M_PI/2;
+    dqlimits(2) = 0.1;
+    dqlimits(3) = M_PI;
+    dqlimits(4) = M_PI;
+    dqlimits(5) = M_PI;
+    dqlimits(6) = M_PI;
+    dqlimits(7) = M_PI;
+    dqlimits(8) = M_PI;
 }
 
 void MarsUR5::setJointPositions(const Eigen::VectorXd& q)
@@ -117,40 +150,161 @@ Eigen::Matrix4d MarsUR5::getEETransform()
     return this->T0e;
 }
 
-void MarsUR5::getManipGradients(VectorXd &MM_dP, double &MM_manip, VectorXd &UR5_dP, double &UR5_manip)
+void MarsUR5::getManipGrads(VectorXd &MMdP, double &MMmanip, VectorXd &UR5dP, double &UR5manip)
 {
     // Make sure the Jacobians and their derivatives have been evaluated
     evalJacobians();
     evalJacobiansDer();
 
     // Manipulability and gradient of JBar
-    MatrixXd JBarT = JBar.transpose();
-    MatrixXd JJt = JBar*JBarT;
-    double w = sqrt(JJt.determinant());
+    JBart = JBar.transpose();
+    JJt = JBar*JBart;
+    w = sqrt(JJt.determinant());
     double w_2 = w/2.0;
-    MatrixXd inv_JJt = JJt.inverse();
-    MM_manip = w;
-    MM_dP = VectorXd::Zero(10);
-    MM_dP(2) = w_2 * (inv_JJt * (dJdq3*JBarT + JBar*(dJdq3.transpose()))).trace();
-    MM_dP(4) = w_2 * (inv_JJt * (dJdq5*JBarT + JBar*(dJdq5.transpose()))).trace();
-    MM_dP(5) = w_2 * (inv_JJt * (dJdq6*JBarT + JBar*(dJdq6.transpose()))).trace();
-    MM_dP(6) = w_2 * (inv_JJt * (dJdq7*JBarT + JBar*(dJdq7.transpose()))).trace();
-    MM_dP(7) = w_2 * (inv_JJt * (dJdq8*JBarT + JBar*(dJdq8.transpose()))).trace();
-    MM_dP(8) = w_2 * (inv_JJt * (dJdq9*JBarT + JBar*(dJdq9.transpose()))).trace();
+    inv_JJt = JJt.inverse();
+    MMmanip = w;
+    dpAux = inv_JJt * (dJdq3*JBart + JBar*(dJdq3.transpose()));
+    dP(2) = w_2 * dpAux.trace();
+    dpAux = inv_JJt * (dJdq5*JBart + JBar*(dJdq5.transpose()));
+    dP(4) = w_2 * dpAux.trace();
+    dpAux = inv_JJt * (dJdq6*JBart + JBar*(dJdq6.transpose()));
+    dP(5) = w_2 * dpAux.trace();
+    dpAux = inv_JJt * (dJdq7*JBart + JBar*(dJdq7.transpose()));
+    dP(6) = w_2 * dpAux.trace();
+    dpAux = inv_JJt * (dJdq8*JBart + JBar*(dJdq8.transpose()));
+    dP(7) = w_2 * dpAux.trace();
+    dpAux = inv_JJt * (dJdq9*JBart + JBar*(dJdq9.transpose()));
+    dP(8) = w_2 * dpAux.trace();
+    MMdP = dP;
 
     // Manipulability and gradient of Ja
-    double wa = abs(Ja.determinant());
-    MatrixXd inv_Ja = Ja.inverse();
-    UR5_manip = wa;
-    UR5_dP = VectorXd::Zero(10);
-    UR5_dP(4) = wa * (inv_Ja*dJadq5).trace();
-    UR5_dP(5) = wa * (inv_Ja*dJadq6).trace();
-    UR5_dP(6) = wa * (inv_Ja*dJadq7).trace();
-    UR5_dP(7) = wa * (inv_Ja*dJadq8).trace();
-    UR5_dP(8) = wa * (inv_Ja*dJadq9).trace();
+    wa = abs(Ja.determinant());
+    inv_Ja = Ja.inverse();
+    UR5manip = wa;
+    dpAux = inv_Ja*dJadq5;
+    dPa(4) = wa * dpAux.trace();
+    dpAux = inv_Ja*dJadq6;
+    dPa(5) = wa * dpAux.trace();
+    dpAux = inv_Ja*dJadq7;
+    dPa(6) = wa * dpAux.trace();
+    dpAux = inv_Ja*dJadq8;
+    dPa(7) = wa * dpAux.trace();
+    dpAux = inv_Ja*dJadq9;
+    dPa(8) = wa * dpAux.trace();
+    UR5dP = dPa;
 }
 
+void MarsUR5::getJLimWeight(MatrixXd &wJLim)
+{
+    wJLim = MatrixXd::Identity(9, 9);
+    double gradH, gradHDif;
+    for (int i = 2; i < 9; i++)
+    {
+        // q(i + 1) is used because we have 9 joint limits for the reduced coordiantes
+        // but 10 joints for the generalized coordinates
+        gradH = abs(pow(qlimits(i, 1) - qlimits(i, 0), 2) * (2 * q(i + 1) - qlimits(i, 1) - qlimits(i, 0)) / (4 * pow(qlimits(i, 1) - q(i + 1), 2) * pow(q(i + 1) - qlimits(i, 0), 2))) / jLimBeta;
+        gradHDif = gradH - prevGradHJLim(i);
+        prevGradHJLim(i) = gradH;
+        if (gradHDif >= 0)
+            wJLim(i, i) = 1 / sqrt(1 + gradH);
+        else
+            wJLim(i, i) = 1;
+    }
+}
 
+void MarsUR5::getElbowColWeight(double rho, double alpha, double beta, MatrixXd &wColElbow, double &distance)
+{
+    wColElbow = MatrixXd::Identity(9, 9);
 
+    /* Calculate the elbow position and Jacobian
+       The Jacobian is with respect to a point on the center of the wheels
+       projected to the floor. This frame allows to define the vector pa_pb just
+       as the z position of the elbow minus the safe distance
+    */
+    elbowPosZ = 0.645359 - 0.425 * sin(q(5)) + q(3);
+    JElbow << 0.0, 0.0, 1.0, 0.0, -0.425 * cos(q(5)), 0.0, 0.0, 0.0, 0.0;
 
+    //Calculate the collision gradient
+    double pa_pb = elbowPosZ - elbowSafeDist;
+    distance = pa_pb;
+    double dist = abs(pa_pb); //absolute of the distance
+    deltad_deltaq = 1.0/dist*(JElbow.transpose()*pa_pb);
+    deltaP_deltad=-1*rho*exp(-1*alpha*dist)*pow(dist,-1*beta)*(beta/dist+alpha);
+    gradPElbow = (deltaP_deltad*deltad_deltaq).cwiseAbs();
+    gradPDif = gradPElbow - prevGradPElbow;
+    //cout << "gradPElbow:" << endl << gradPElbow.transpose() << endl;
+    for (int i = 2; i < 5; i++)
+    {
+        if (gradPDif(i) >= 0)
+            wColElbow(i,i) = 1/sqrt(1 + gradPElbow(i));
+        else
+            wColElbow(i,i) = 1;
+    }
+    prevGradPElbow = gradPElbow;
+}
 
+void MarsUR5::getWristColWeight(double rho, double alpha, double beta, MatrixXd &wColWrist, double &distance, Vector3d &wristPos)
+{
+    wColWrist = MatrixXd::Identity(9, 9);
+
+    /* Calculate the wrist position and Jacobian
+       The Jacobian is with respect to a point on the center of the wheels
+       projected to the floor. This frame allows to define the vector pa_pb just
+       as the x position of the elbow minus the safe distance
+    */
+    wristPos << 0.39225e0 * cos(q(4)) * cos(q(5)) * cos(q(6)) - 0.39225e0 * cos(q(4)) * sin(q(5)) * sin(q(6)) - 0.49e-1 + 0.425e0 * cos(q(4)) * cos(q(5)), 0.39225e0 * sin(q(4)) * cos(q(5)) * cos(q(6)) - 0.39225e0 * sin(q(4)) * sin(q(5)) * sin(q(6)) + 0.425e0 * sin(q(4)) * cos(q(5)), -0.39225e0 * sin(q(5)) * cos(q(6)) - 0.39225e0 * cos(q(5)) * sin(q(6)) + 0.645359e0 - 0.425e0 * sin(q(5)) + q(3);
+    //cout << "wristPos: " << endl << wristPos.transpose() << endl;
+    JWrist << 0.0, 0.0, 0.0, -0.1961250000e0 * sin(q(4) + q(5) + q(6)) - 0.1961250000e0 * sin(q(4) - q(5) - q(6)) - 0.2125000000e0 * sin(q(4) + q(5)) - 0.2125000000e0 * sin(q(4) - q(5)), -0.1961250000e0 * sin(q(4) + q(5) + q(6)) + 0.1961250000e0 * sin(q(4) - q(5) - q(6)) - 0.2125000000e0 * sin(q(4) + q(5)) + 0.2125000000e0 * sin(q(4) - q(5)), -0.1961250000e0 * sin(q(4) + q(5) + q(6)) + 0.1961250000e0 * sin(q(4) - q(5) - q(6)), 0.0, 0.0, 0.0;
+    //cout << "JWrist: " << endl << JWrist.transpose() << endl;
+
+    // Calculate the collision gradient
+    double pa_pb = wristPos(0) - wristSafeDist;
+    distance = pa_pb;
+    double dist = abs(pa_pb); //absolute of the distance
+
+    // The collision weighting matrix is only evaluated if the wrist height
+    // is below a safe distance, otherwise the identity matrix is used
+    if (wristPos(2) > 0.5)
+        return;
+
+    deltad_deltaq = 1.0/dist*(JWrist.transpose()*pa_pb);
+    deltaP_deltad=-1*rho*exp(-1*alpha*dist)*pow(dist,-1*beta)*(beta/dist+alpha);
+    gradPWrist = (deltaP_deltad*deltad_deltaq).cwiseAbs();
+    gradPDif = gradPWrist - prevGradPWrist;
+    //cout << "gradPWrist:" << endl << gradPWrist.transpose() << endl;
+    for (int i = 3; i < 6; i++)
+    {
+        if (gradPDif(i) >= 0)
+            wColWrist(i,i) = 1/sqrt(1 + gradPWrist(i));
+        else
+            wColWrist(i,i) = 1;
+    }
+    prevGradPWrist = gradPWrist;
+}
+
+void MarsUR5::getSelfMotionLims(const VectorXd &dqp, const VectorXd &dqh, double &maxMag, double &minMag)
+{
+    double kmax = Infinity;
+    double kmin = -Infinity;
+    double kmax_aux, kmin_aux;
+    for (int i = 1; i < 9; i++)
+    {
+        kmax_aux = max((dqlimits(i)-dqp(i))/dqh(i),(-dqlimits(i)-dqp(i))/dqh(i));
+        kmin_aux = min((dqlimits(i)-dqp(i))/dqh(i),(-dqlimits(i)-dqp(i))/dqh(i));
+        kmax = min(kmax_aux, kmax);
+        kmin = max(kmin_aux, kmin);
+    }
+    maxMag = kmax;
+    minMag = kmin;
+}
+
+MatrixXd MarsUR5::getVelsNormMatrix()
+{
+    MatrixXd invTq = MatrixXd::Zero(9, 9);
+    for (int i = 0; i < 9; i++)
+    {
+        //Tq = 1 / sqrt(dqlimits(i));
+        invTq(i, i) = sqrt(dqlimits(i));
+    }
+    return invTq;
+}

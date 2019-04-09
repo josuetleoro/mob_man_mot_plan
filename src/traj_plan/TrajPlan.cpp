@@ -30,8 +30,8 @@ void TrajPlan::fithOrderInterp(double qi, double dqi, double ddqi, double qf, do
         dq[k+1]=dqPol(tk_plus_1,coef);
         ddq[k+1]=ddqPol(tk_plus_1,coef);
     }
-    cout << "size(q): " << q.size() << endl;
-    cout << "m: " << m << endl;
+    /*cout << "size(q): " << q.size() << endl;
+    cout << "m: " << m << endl;*/
 }
 
 std::vector<double> TrajPlan::polynomCoef(double qi, double dqi, double ddqi, double qf, double dqf, double ddqf, double ti, double tf)
@@ -76,11 +76,18 @@ void TrajPlan::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat qf, Ve
 
     // To find the shortest path change the sign on one of the quaternions
     // if the dot product of its vectors is less than zero
-    if (qi.getV().dot(qf.getV()) < 0)
+    /*cout << "Qi: " << qi << endl;
+    cout << "Qf: " << qf << endl;
+    cout << "Qi.Qf: " << qi.getV().dot(qf.getV()) << endl;*/
+    double qidotqf = qi.getV().dot(qf.getV());
+    if (abs(qidotqf) > 1e-6)
     {
-        qf = -1*qf;
+        if (qidotqf < 0)
+        {
+            cout << "quat changed sign" << endl;
+            qf = -1*qf;
+        }
     }
-
     // Assign the derivatives of the norm
     double dNf = 0, ddNf = 0;
 
@@ -126,7 +133,7 @@ void TrajPlan::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat qf, Ve
             quat[k+1]=-1*quat[k+1];
         quat[k+1].normalize();
         /*cout << "norm = " << quat[k+1].norm() << endl;        
-        cout << "k = " << k << " quat: " << quat[k+1] << endl;        
+        cout << "k = " << k << " quat: " << quat[k+1] << endl;
         getchar();*/
     }
 }
