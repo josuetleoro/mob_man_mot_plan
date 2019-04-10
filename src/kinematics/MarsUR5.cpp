@@ -297,23 +297,14 @@ void MarsUR5::getSelfMotionLims(const VectorXd &dqp, const VectorXd &dqh, double
     double kmax = std::numeric_limits<double>::infinity();
     double kmin = -std::numeric_limits<double>::infinity();
     double kmax_aux, kmin_aux;
-    /*cout << "dqPart: " << dqp.transpose() << endl
-         << "dqHom: " << dqh.transpose() << endl;*/
-    for (int i = 1; i < 9; i++)
+    for (int i = 0; i < 9; i++)
     {
         double k1 = (dqlimits(i)-dqp(i))/dqh(i);
         double k2 = (-dqlimits(i)-dqp(i))/dqh(i);
-        /*cout << "k1: " << k1 << endl
-             << "k2: " << k2 << endl;*/
         kmax_aux = std::max((dqlimits(i)-dqp(i))/dqh(i),(-dqlimits(i)-dqp(i))/dqh(i));
         kmin_aux = std::min((dqlimits(i)-dqp(i))/dqh(i),(-dqlimits(i)-dqp(i))/dqh(i));
         kmax = std::min(kmax_aux, kmax);
         kmin = std::max(kmin_aux, kmin);
-        /*cout << "kmax_aux: " << kmax_aux << endl
-             << "kmin_aux: " << kmin_aux << endl
-             << "kmax: " << kmax << endl
-             << "kmin: " << kmin << endl;
-             getchar();*/
     }
     maxMag = kmax;
     minMag = kmin;
