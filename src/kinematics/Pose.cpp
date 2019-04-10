@@ -76,9 +76,12 @@ VectorXd Pose::pose_diff(const Pose &pose1, const Pose &pose2)
     double w0 = w1 * w2 + v1.dot(v2);
     Vector3d e0 = w2*v1 - w1 * v2 - v1.cross(v2);
     //cout << "w0: " << w0 << endl;
-    if (w0 < 0)
-    {        
-        e0 = -1*e0;
+    if (abs(w0) > 1e-6)
+    {
+        if (w0 < 0)
+        {        
+            e0 = -1*e0;
+        }
     }
     diff.tail(3) = e0;
 

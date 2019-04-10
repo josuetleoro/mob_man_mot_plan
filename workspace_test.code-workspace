@@ -48,7 +48,11 @@
 			"utility": "cpp",
 			"optional": "cpp",
 			"system_error": "cpp",
-			"core": "cpp"
+			"core": "cpp",
+			"atomic": "cpp",
+			"strstream": "cpp",
+			"thread": "cpp",
+			"typeindex": "cpp"
 		},
 		"python.autoComplete.extraPaths": [
 			"/opt/ros/kinetic/lib/python2.7/dist-packages"

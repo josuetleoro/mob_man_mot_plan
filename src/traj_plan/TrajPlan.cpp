@@ -84,7 +84,7 @@ void TrajPlan::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat qf, Ve
     {
         if (qidotqf < 0)
         {
-            cout << "quat changed sign" << endl;
+            cout << "\033[1;33mQuat changed sign\033[0m" << endl;
             qf = -1*qf;
         }
     }

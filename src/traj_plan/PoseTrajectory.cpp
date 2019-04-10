@@ -1,8 +1,10 @@
 #include "mars_mot_plan/traj_plan/PoseTrajectory.h"
 #include "mars_mot_plan/traj_plan/TrajPlan.h"
+#include "matplotlibcpp.h"  //Temporal for plots
 #include <iostream>
 using namespace std;
 using namespace Eigen;
+namespace plt = matplotlibcpp;
 
 std::vector<double> PoseTrajectory::getTrajPosition(char sel)
 {
@@ -179,4 +181,44 @@ PoseTrajectory::PoseTrajectory(Pose posei, Vector3d linVeli, Vector3d linAcci, V
         accelerations.at(k) = VectorXd(6);
         accelerations.at(k) << ddx.at(k), ddy.at(k), ddz.at(k), dw.at(k)(0), dw.at(k)(1), dw.at(k)(2);
     }
+
+    // Plot the obtained quaternion trajectory
+    // Plot position
+    /*plt::figure(1);
+    plt::suptitle("Position");
+    plt::subplot(3, 1, 1);
+    plt::plot(time, getTrajPosition('x'));
+    plt::ylabel("x");
+    plt::grid(true);
+    plt::subplot(3, 1, 2);
+    plt::plot(time, getTrajPosition('y'));
+    plt::ylabel("y");
+    plt::grid(true);
+    plt::subplot(3, 1, 3);
+    plt::plot(time, getTrajPosition('z'));
+    plt::ylabel("z");
+    plt::grid(true);
+    plt::xlabel("time");
+
+    // Plot orientation
+    plt::figure(3);
+    plt::suptitle("Orientation(quaternion)");
+    plt::subplot(2, 2, 1);
+    plt::plot(time, getTrajOrientation('w'));
+    plt::ylabel("w");
+    plt::grid(true);
+    plt::subplot(2, 2, 2);
+    plt::plot(time, getTrajOrientation('x'));
+    plt::ylabel("x");
+    plt::grid(true);
+    plt::subplot(2, 2, 3);
+    plt::plot(time, getTrajOrientation('y'));
+    plt::ylabel("y");
+    plt::grid(true);
+    plt::subplot(2, 2, 4);
+    plt::plot(time, getTrajOrientation('z'));
+    plt::ylabel("z");
+    plt::grid(true);
+    plt::xlabel("time");
+    plt::show();*/
 }

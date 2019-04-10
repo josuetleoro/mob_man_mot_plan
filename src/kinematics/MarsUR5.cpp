@@ -73,9 +73,9 @@ MarsUR5::MarsUR5()
     qlimits(3,0) = -100*M_PI/180; qlimits(3,1) = 1*M_PI/180;
     qlimits(4,0) = -90*M_PI/180; qlimits(4,1) = 15*M_PI/180;
     qlimits(5,0) = 0*M_PI/180; qlimits(5,1) = 180*M_PI/180;
-    qlimits(6,0) = -2*M_PI/180; qlimits(6,1) = 2*M_PI/180;
-    qlimits(7,0) = -2*M_PI/180; qlimits(7,1) = 2*M_PI/180;
-    qlimits(8,0) = -2*M_PI/180; qlimits(8,1) = 2*M_PI/180;
+    qlimits(6,0) = -2*M_PI; qlimits(6,1) = 2*M_PI;
+    qlimits(7,0) = -2*M_PI; qlimits(7,1) = 2*M_PI;
+    qlimits(8,0) = -2*M_PI; qlimits(8,1) = 2*M_PI;
     jLimBeta = 50;
     prevGradHJLim = VectorXd::Zero(9);
 
@@ -204,6 +204,16 @@ void MarsUR5::getJLimWeight(MatrixXd &wJLim)
         // but 10 joints for the generalized coordinates
         gradH = abs(pow(qlimits(i, 1) - qlimits(i, 0), 2) * (2 * q(i + 1) - qlimits(i, 1) - qlimits(i, 0)) / (4 * pow(qlimits(i, 1) - q(i + 1), 2) * pow(q(i + 1) - qlimits(i, 0), 2))) / jLimBeta;
         gradHDif = gradH - prevGradHJLim(i);
+
+        /*cout << "i: " << i << endl;
+        cout << "q: " << q.transpose() << endl;
+        cout << "q(i+1): " << q(i+1) << endl;
+        cout << "gradH: " << gradH << endl;
+        cout << "gradHDif: " << gradHDif << endl;
+        cout << "qlimit_low: " << qlimits(i, 0) << endl;
+        cout << "qlimit_high: " << qlimits(i, 1) << endl;
+        cout << endl;*/
+
         prevGradHJLim(i) = gradH;
         if (gradHDif >= 0)
             wJLim(i, i) = 1 / sqrt(1 + gradH);
@@ -284,15 +294,26 @@ void MarsUR5::getWristColWeight(double rho, double alpha, double beta, MatrixXd 
 
 void MarsUR5::getSelfMotionLims(const VectorXd &dqp, const VectorXd &dqh, double &maxMag, double &minMag)
 {
-    double kmax = Infinity;
-    double kmin = -Infinity;
+    double kmax = std::numeric_limits<double>::infinity();
+    double kmin = -std::numeric_limits<double>::infinity();
     double kmax_aux, kmin_aux;
+    /*cout << "dqPart: " << dqp.transpose() << endl
+         << "dqHom: " << dqh.transpose() << endl;*/
     for (int i = 1; i < 9; i++)
     {
-        kmax_aux = max((dqlimits(i)-dqp(i))/dqh(i),(-dqlimits(i)-dqp(i))/dqh(i));
-        kmin_aux = min((dqlimits(i)-dqp(i))/dqh(i),(-dqlimits(i)-dqp(i))/dqh(i));
-        kmax = min(kmax_aux, kmax);
-        kmin = max(kmin_aux, kmin);
+        double k1 = (dqlimits(i)-dqp(i))/dqh(i);
+        double k2 = (-dqlimits(i)-dqp(i))/dqh(i);
+        /*cout << "k1: " << k1 << endl
+             << "k2: " << k2 << endl;*/
+        kmax_aux = std::max((dqlimits(i)-dqp(i))/dqh(i),(-dqlimits(i)-dqp(i))/dqh(i));
+        kmin_aux = std::min((dqlimits(i)-dqp(i))/dqh(i),(-dqlimits(i)-dqp(i))/dqh(i));
+        kmax = std::min(kmax_aux, kmax);
+        kmin = std::max(kmin_aux, kmin);
+        /*cout << "kmax_aux: " << kmax_aux << endl
+             << "kmin_aux: " << kmin_aux << endl
+             << "kmax: " << kmax << endl
+             << "kmin: " << kmin << endl;
+             getchar();*/
     }
     maxMag = kmax;
     minMag = kmin;

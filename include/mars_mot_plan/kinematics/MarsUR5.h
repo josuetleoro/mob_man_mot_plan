@@ -73,6 +73,14 @@ public:
 	MarsUR5();
 	void setJointPositions(const Eigen::VectorXd& q);
     Eigen::Matrix4d getEETransform();
+	MatrixXd getJointLim()
+	{
+		return qlimits;
+	}
+	Eigen::VectorXd getJointVelLim()
+	{
+		return dqlimits;
+	}
 	Eigen::MatrixXd getJacobianBar()
 	{
 		evalJBar();
