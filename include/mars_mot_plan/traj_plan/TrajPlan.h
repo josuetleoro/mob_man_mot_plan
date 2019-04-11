@@ -14,19 +14,22 @@ using namespace Eigen;
 class TrajPlan
 {
 private:
-    static std::vector<double> polynomCoef(double qi, double dqi, double ddqi, double qf, double dqf, double ddqf, double ti, double tf);
-    static double qPol(double t, std::vector<double> coef);
-    static double dqPol(double t, std::vector<double> coef);
-    static double ddqPol(double t, std::vector<double> coef);
-
     static Quat quatDerNorm(Quat w, double dN, Quat q);
     static Quat quatSecDerNorm(Quat w, Quat dw, double dN, double ddN, Quat q);    
-    static std::vector<Quat> quatPolynomCoef(Quat qk, Quat qwk, Quat dqwk, Quat qf, Quat dqf, Quat ddqf, double tk, double tf);
-    static Quat quatPol(double tau, std::vector<Quat> coef);
-    static Quat dquatPol(double t, double ti, double tf, std::vector<Quat> coef);
-    static Quat ddquatPol(double t, double ti, double tf, std::vector<Quat> coef);
+    static Quat dquatPol(double t, double ti, double tf, const std::vector<Quat> &coef);
+    static Quat ddquatPol(double t, double ti, double tf, const std::vector<Quat> &coef);
 
 public:
+    static std::vector<double> polynomCoef(double qi, double dqi, double ddqi, double qf, double dqf, double ddqf, double ti, double tf);
+    static double qPol(double t, const std::vector<double> &coef);
+    static double dqPol(double t, const std::vector<double> &coef);
+    static double ddqPol(double t, const std::vector<double> &coef);
+
+    static std::vector<Quat> quatPolynomCoef(Quat qk, Vector3d wi, Vector3d dwi, Quat qf, Vector3d wf, Vector3d dwf, double ti, double tf);
+    static Quat quatPol(double t, double ti, double tf, const std::vector<Quat> &coef);
+    static Vector3d wPol(double t, double ti, double tf, const std::vector<Quat> &coef);
+    static Vector3d dwPol(double t, double ti, double tf, const std::vector<Quat> &coef);
+
     /**
      * Fifth order polynomial interpolation
      * qi: initial position

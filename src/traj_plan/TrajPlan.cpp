@@ -24,8 +24,8 @@ void TrajPlan::fithOrderInterp(double qi, double dqi, double ddqi, double qf, do
     {
         //cout << "k+1: " << k+1 << endl;
         // Compute q(k+1), dq(k+1) and ddq(k+1)
-        time[k+1] = ti + (k+1)*ts;
         tk_plus_1 = ti + (k+1)*ts;
+        time[k+1] = tk_plus_1;        
         q[k+1]=qPol(tk_plus_1,coef);
         dq[k+1]=dqPol(tk_plus_1,coef);
         ddq[k+1]=ddqPol(tk_plus_1,coef);
@@ -50,54 +50,27 @@ std::vector<double> TrajPlan::polynomCoef(double qi, double dqi, double ddqi, do
     return coef;
 }
 
-double TrajPlan::qPol(double t, std::vector<double> coef)
+double TrajPlan::qPol(double t, const std::vector<double> &coef)
 {
     return coef[0]+coef[1]*t+coef[2]*t*t+coef[3]*t*t*t+coef[4]*t*t*t*t+coef[5]*t*t*t*t*t;    
 }
     
-double TrajPlan::dqPol(double t, std::vector<double> coef)
+double TrajPlan::dqPol(double t, const std::vector<double> &coef)
 {
     return coef[1]+2*coef[2]*t+3*coef[3]*t*t+4*coef[4]*t*t*t+5*coef[5]*t*t*t*t;
 }
     
-double TrajPlan::ddqPol(double t, std::vector<double> coef)
+double TrajPlan::ddqPol(double t, const std::vector<double> &coef)
 {
     return 2*coef[2]+6*coef[3]*t+12*coef[4]*t*t+20*coef[5]*t*t*t;
 }
 
 void TrajPlan::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat qf, Vector3d wf, Vector3d dwf, double ti, double tf, double ts, std::vector<Quat> &quat, std::vector<Vector3d> &w, std::vector<Vector3d> &dw, std::vector<double> &time)
 {
-    // Initialization
-    Quat qwi = Quat(0, wi);
-    Quat dqwi = Quat(0, dwi);
-    Quat qwf = Quat(0, wf);
-    Quat dqwf = Quat(0, dwf);
-    double T = tf - ti;
-
-    // To find the shortest path change the sign on one of the quaternions
-    // if the dot product of its vectors is less than zero
-    /*cout << "Qi: " << qi << endl;
-    cout << "Qf: " << qf << endl;
-    cout << "Qi.Qf: " << qi.getV().dot(qf.getV()) << endl;*/
-    double qidotqf = qi.getV().dot(qf.getV());
-    if (abs(qidotqf) > 1e-6)
-    {
-        if (qidotqf < 0)
-        {
-            cout << "\033[1;33mQuat changed sign\033[0m" << endl;
-            qf = -1*qf;
-        }
-    }
-    // Assign the derivatives of the norm
-    double dNf = 0, ddNf = 0;
-
-    // Calculate quaternion the polynomial coefficients
-    Quat dqf = quatDerNorm(qwf, dNf, qf);
-    Quat ddqf = quatSecDerNorm(qwf, dqwf, dNf, ddNf, qf);
-    double m = T/ts;
-    std::vector<Quat> coef = quatPolynomCoef(qi, qwi, dqwi, qf, dqf, ddqf, ti, tf);
+    std::vector<Quat> coef = quatPolynomCoef(qi, wi, dwi, qf, wf, dwf, ti, tf);
 
     // Perform the interpolation
+    double m = (tf - ti)/ts;
     quat.resize(m+1);
     w.resize(m+1);
     dw.resize(m+1);
@@ -114,10 +87,9 @@ void TrajPlan::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat qf, Ve
         // Compute q(k+1), dq(k+1) and ddq(k+1)
         tk_plus_1 = ti + (k+1)*ts;
         time[k+1] = tk_plus_1;
-        tau=(tk_plus_1-ti_hat)/(tf-ti_hat);
-        q_k_plus_1=quatPol(tau,coef);
-        dq_k_plus_1=dquatPol(tk_plus_1,ti_hat,tf,coef);
-        ddq_k_plus_1=ddquatPol(tk_plus_1,ti_hat,tf,coef);
+        q_k_plus_1=quatPol(tk_plus_1,ti,tf,coef);
+        dq_k_plus_1=dquatPol(tk_plus_1,ti,tf,coef);
+        ddq_k_plus_1=ddquatPol(tk_plus_1,ti,tf,coef);
         
         // Compute w(k+1) and dw(k+1)
         qwk_plus_1=2*dq_k_plus_1*q_k_plus_1.inv();
@@ -148,28 +120,56 @@ Quat TrajPlan::quatSecDerNorm(Quat w, Quat dw, double dN, double ddN, Quat q)
     return 0.5*dw*q + dN*w*q - 0.25*w.getV().norm()*q + ddN*q;
 }
 
-std::vector<Quat> TrajPlan::quatPolynomCoef(Quat qk, Quat qwk, Quat dqwk, Quat qf, Quat dqf, Quat ddqf, double tk, double tf)
+std::vector<Quat> TrajPlan::quatPolynomCoef(Quat qi, Vector3d wi, Vector3d dwi, Quat qf, Vector3d wf, Vector3d dwf, double ti, double tf)
 {
+    // Initialization
+    Quat qwi = Quat(0, wi);
+    Quat dqwi = Quat(0, dwi);
+    Quat qwf = Quat(0, wf);
+    Quat dqwf = Quat(0, dwf);
+
+    // To find the shortest path change the sign on one of the quaternions
+    // if the dot product of its vectors is less than zero
+    /*cout << "Qi: " << qi << endl;
+    cout << "Qf: " << qf << endl;
+    cout << "Qi.Qf: " << qi.getV().dot(qf.getV()) << endl;*/
+    double qidotqf = qi.getV().dot(qf.getV());
+    if (abs(qidotqf) > 1e-6)
+    {
+        if (qidotqf < 0)
+        {
+            cout << "\033[1;33mFinal quaternion changed sign to find shortest path\033[0m" << endl;
+            qf = -1*qf;
+        }
+    }
+    // Assign the derivatives of the norm
+    double dNf = 0, ddNf = 0;
+
+    // Calculate the quaternion polynomial coefficients
+    Quat dqf = quatDerNorm(qwf, dNf, qf);
+    Quat ddqf = quatSecDerNorm(qwf, dqwf, dNf, ddNf, qf);
+
     std::vector<Quat> coef;
     coef.resize(6);
-    double Tk = tf - tk;
-    Quat dqk = quatDerNorm(qwk, 0, qk);
-    Quat ddqk = quatSecDerNorm(qwk, dqwk, 0, 0, qk);
-    coef[0] = qk;
-    coef[1] = 3*qk + dqk*Tk;
-    coef[2] = 0.5*ddqk*Tk*Tk+3*dqk*Tk+6*qk;
+    double T = tf - ti;
+    Quat dQi = quatDerNorm(qwi, 0, qi);
+    Quat ddQi = quatSecDerNorm(qwi, dqwi, 0, 0, qi);
+    coef[0] = qi;
+    coef[1] = 3*qi + dQi*T;
+    coef[2] = 0.5*ddQi*T*T+3*dQi*T+6*qi;
     coef[3] = qf;
-    coef[4] = 3*qf-dqf*Tk;
-    coef[5] = 0.5*ddqf*Tk*Tk-3*dqf*Tk+6*qf;
+    coef[4] = 3*qf-dqf*T;
+    coef[5] = 0.5*ddqf*T*T-3*dqf*T+6*qf;
     return coef;
 }
 
-Quat TrajPlan::quatPol(double tau, std::vector<Quat> coef)
+Quat TrajPlan::quatPol(double t, double ti, double tf, const std::vector<Quat> &coef)
 {
+    double tau=(t-ti)/(tf-ti);
     return pow(1-tau,3)*(coef[0]+coef[1]*tau+coef[2]*tau*tau)+tau*tau*tau*(coef[3]+coef[4]*(1-tau)+coef[5]*(1-tau)*(1-tau));
 }
 
-Quat TrajPlan::dquatPol(double t, double ti, double tf, std::vector<Quat> coef)
+Quat TrajPlan::dquatPol(double t, double ti, double tf, const std::vector<Quat> &coef)
 {
     double t_ti = t-ti;
     double tf_ti = tf-ti;
@@ -186,7 +186,7 @@ Quat TrajPlan::dquatPol(double t, double ti, double tf, std::vector<Quat> coef)
     (t-ti)^3*(-1*p4/(tf-ti)-2*p5*(1-(t-ti)/(tf-ti))/(tf-ti))/(tf-ti)^3;*/
 }
 
-Quat TrajPlan::ddquatPol(double t, double ti, double tf, std::vector<Quat> coef)
+Quat TrajPlan::ddquatPol(double t, double ti, double tf, const std::vector<Quat> &coef)
 {
     double t_ti = t-ti;
     double tf_ti = tf-ti;
@@ -207,45 +207,19 @@ Quat TrajPlan::ddquatPol(double t, double ti, double tf, std::vector<Quat> coef)
     +2*(t-ti)^3*p5/(tf-ti)^5;    */    
 }
 
-/*void TrajPlan::posePolynomInterp(Pose posei, Vector3d linVeli, Vector3d linAcci, Vector3d angVeli, Vector3d angAcci,
-                                 Pose posef, Vector3d linVelf, Vector3d linAccf, Vector3d angVelf, Vector3d angAccf,
-                                 double ti, double tf, double ts,
-                                 std::vector<Pose> &pose_traj, std::vector<Vector3d> &dpos, std::vector<Vector3d> &ddpos, std::vector<Vector3d> &w, std::vector<Vector3d> &dw, std::vector<double> &time)
+Vector3d TrajPlan::wPol(double t, double ti, double tf, const std::vector<Quat> &coef)
 {
+    Quat Q = quatPol(t,ti,tf,coef);
+    Quat dQ = dquatPol(t,ti,tf,coef);
+    Vector3d w = (2*dQ*Q.inv()).getV();
+    return w;
+}
 
-    // Position
-    // x
-    std::vector<double> x, dx, ddx, time;
-    PolynomInterp::fithOrderInterp(posei.position(0), linVeli(0), linAcci(0), posef.position(0), linVelf(0), linAccf(0), ti, tf, ts, x, dx, ddx, time);
-    // y
-    std::vector<double> y, dy, ddy;
-    PolynomInterp::fithOrderInterp(posei.position(1), linVeli(1), linAcci(1), posef.position(1), linVelf(1), linAccf(1), ti, tf, ts, y, dy, ddy, time);
-    // z
-    std::vector<double> z, dz, ddz;
-    PolynomInterp::fithOrderInterp(posei.position(2), linVeli(2), linAcci(2), posef.position(2), linVelf(2), linAccf(2), ti, tf, ts, y, dy, ddy, time);
-
-    // Orientation
-    std::vector<Quat> quat;
-    std::vector<Vector3d> w, dw;
-    TrajPlan::quatPolynomInterp(posei.orientation, angVeli, angAcci, posef.orientation, angVelf, angAccf, ti, tf, ts, quat, w, dw, time);
-    high_resolution_clock::time_point end = high_resolution_clock::now();
-    
-    // Store the trajectory in the corresponding vectors
-    double N = time.size();
-    pose_traj.reserve(N);
-    dpos.reserve(N);
-    for (int k=0; k<N; k++)
-    {
-        pose_traj(k).position = Vector3d(x(k), y(k), z(k));
-        pose_traj(k).orientation = quat(k);
-        
-
-    }
-
-    cout << "size(quat): " << quat.size() << endl;
-    cout << "size(quat_w): " << quat_w.size() << endl;
-    cout << "size(time): " << time.size() << endl;
-
-
-}*/
-
+Vector3d TrajPlan::dwPol(double t, double ti, double tf, const std::vector<Quat> &coef)
+{
+    Quat Q = quatPol(t,ti,tf,coef);
+    Quat dQ = dquatPol(t,ti,tf,coef);
+    Quat ddQ = ddquatPol(t,ti,tf,coef);
+    Vector3d dw = (2*ddQ*Q.inv()-2*(dQ*Q.inv()/2)).getV();
+    return dw;
+}
