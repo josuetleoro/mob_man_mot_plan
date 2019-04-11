@@ -62,12 +62,18 @@ set(SOURCE_FILES
   src/kinematics/Pose.cpp
   src/traj_plan/TrajPlan.cpp
   src/traj_plan/PoseTrajectory.cpp
+  src/traj_plan/PoseIterTrajectory.cpp
 )
 
-add_executable(mobman_mot_plan_node src/mobman_mot_plan.cpp ${SOURCE_FILES})
-target_include_directories(mobman_mot_plan_node PRIVATE ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(mobman_mot_plan_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
-add_dependencies(mobman_mot_plan_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(mobman_mot_plan_sim_node src/mobman_mot_plan_sim.cpp ${SOURCE_FILES})
+target_include_directories(mobman_mot_plan_sim_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(mobman_mot_plan_sim_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(mobman_mot_plan_sim_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(mobman_mot_plan_exp_node src/mobman_mot_plan_exp.cpp ${SOURCE_FILES})
+target_include_directories(mobman_mot_plan_exp_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(mobman_mot_plan_exp_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(mobman_mot_plan_exp_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 #############
 ## Install ##
@@ -84,7 +90,7 @@ add_dependencies(mobman_mot_plan_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS mobman_mot_plan_node
+install(TARGETS mobman_mot_plan_sim_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
