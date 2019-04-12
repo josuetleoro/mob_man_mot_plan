@@ -31,6 +31,12 @@ public:
     PoseIterTrajectory(Pose posei, Vector3d linVeli, Vector3d linAcci, Vector3d angVeli, Vector3d angAcci,
                    Pose posef, Vector3d linVelf, Vector3d linAccf, Vector3d angVelf, Vector3d angAccf,
                    double ti, double tf);
+   
+    /**
+     * Returns the polynomial coefficients of the coordinate 'coord'.
+     * The variable sel can have the values {'x','y','z'}.
+     */
+    std::vector<double> getPosCoeff(char coord);
 
     /**
      * Returns the position coordinate 'coord' at time t.
@@ -49,6 +55,12 @@ public:
      * The variable sel can have the values {'x','y','z'}.
      */
     double getLinAcc(char coord, double t);
+
+    /**
+     * Returns the maximum value of all the linear velocities,
+     * and stores the coordinate with its maximum velocity in coord.
+     */    
+    double getMaxLinVel(char &coord);
 
     /**
      * Returns the quaternion orientation 'part' at time t.

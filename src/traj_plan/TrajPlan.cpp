@@ -26,9 +26,9 @@ void TrajPlan::fithOrderInterp(double qi, double dqi, double ddqi, double qf, do
         // Compute q(k+1), dq(k+1) and ddq(k+1)
         tk_plus_1 = ti + (k+1)*ts;
         time[k+1] = tk_plus_1;        
-        q[k+1]=qPol(tk_plus_1,coef);
-        dq[k+1]=dqPol(tk_plus_1,coef);
-        ddq[k+1]=ddqPol(tk_plus_1,coef);
+        q[k+1]=qPol(coef, tk_plus_1);
+        dq[k+1]=dqPol(coef, tk_plus_1);
+        ddq[k+1]=ddqPol(coef, tk_plus_1);
     }
     /*cout << "size(q): " << q.size() << endl;
     cout << "m: " << m << endl;*/
@@ -50,17 +50,17 @@ std::vector<double> TrajPlan::polynomCoef(double qi, double dqi, double ddqi, do
     return coef;
 }
 
-double TrajPlan::qPol(double t, const std::vector<double> &coef)
+double TrajPlan::qPol(const std::vector<double> &coef, double t)
 {
     return coef[0]+coef[1]*t+coef[2]*t*t+coef[3]*t*t*t+coef[4]*t*t*t*t+coef[5]*t*t*t*t*t;    
 }
     
-double TrajPlan::dqPol(double t, const std::vector<double> &coef)
+double TrajPlan::dqPol(const std::vector<double> &coef, double t)
 {
     return coef[1]+2*coef[2]*t+3*coef[3]*t*t+4*coef[4]*t*t*t+5*coef[5]*t*t*t*t;
 }
     
-double TrajPlan::ddqPol(double t, const std::vector<double> &coef)
+double TrajPlan::ddqPol(const std::vector<double> &coef, double t)
 {
     return 2*coef[2]+6*coef[3]*t+12*coef[4]*t*t+20*coef[5]*t*t*t;
 }
@@ -87,9 +87,9 @@ void TrajPlan::quatPolynomInterp(Quat qi, Vector3d wi, Vector3d dwi, Quat qf, Ve
         // Compute q(k+1), dq(k+1) and ddq(k+1)
         tk_plus_1 = ti + (k+1)*ts;
         time[k+1] = tk_plus_1;
-        q_k_plus_1=quatPol(tk_plus_1,ti,tf,coef);
-        dq_k_plus_1=dquatPol(tk_plus_1,ti,tf,coef);
-        ddq_k_plus_1=ddquatPol(tk_plus_1,ti,tf,coef);
+        q_k_plus_1=quatPol(coef,ti,tf,tk_plus_1);
+        dq_k_plus_1=dquatPol(coef,ti,tf,tk_plus_1);
+        ddq_k_plus_1=ddquatPol(coef,ti,tf,tk_plus_1);
         
         // Compute w(k+1) and dw(k+1)
         qwk_plus_1=2*dq_k_plus_1*q_k_plus_1.inv();
@@ -163,13 +163,13 @@ std::vector<Quat> TrajPlan::quatPolynomCoef(Quat qi, Vector3d wi, Vector3d dwi, 
     return coef;
 }
 
-Quat TrajPlan::quatPol(double t, double ti, double tf, const std::vector<Quat> &coef)
+Quat TrajPlan::quatPol(const std::vector<Quat> &coef, double ti, double tf, double t)
 {
     double tau=(t-ti)/(tf-ti);
     return pow(1-tau,3)*(coef[0]+coef[1]*tau+coef[2]*tau*tau)+tau*tau*tau*(coef[3]+coef[4]*(1-tau)+coef[5]*(1-tau)*(1-tau));
 }
 
-Quat TrajPlan::dquatPol(double t, double ti, double tf, const std::vector<Quat> &coef)
+Quat TrajPlan::dquatPol(const std::vector<Quat> &coef, double ti, double tf, double t)
 {
     double t_ti = t-ti;
     double tf_ti = tf-ti;
@@ -186,7 +186,7 @@ Quat TrajPlan::dquatPol(double t, double ti, double tf, const std::vector<Quat> 
     (t-ti)^3*(-1*p4/(tf-ti)-2*p5*(1-(t-ti)/(tf-ti))/(tf-ti))/(tf-ti)^3;*/
 }
 
-Quat TrajPlan::ddquatPol(double t, double ti, double tf, const std::vector<Quat> &coef)
+Quat TrajPlan::ddquatPol(const std::vector<Quat> &coef, double ti, double tf, double t)
 {
     double t_ti = t-ti;
     double tf_ti = tf-ti;
@@ -207,19 +207,19 @@ Quat TrajPlan::ddquatPol(double t, double ti, double tf, const std::vector<Quat>
     +2*(t-ti)^3*p5/(tf-ti)^5;    */    
 }
 
-Vector3d TrajPlan::wPol(double t, double ti, double tf, const std::vector<Quat> &coef)
+Vector3d TrajPlan::wPol(const std::vector<Quat> &coef, double ti, double tf, double t)
 {
-    Quat Q = quatPol(t,ti,tf,coef);
-    Quat dQ = dquatPol(t,ti,tf,coef);
+    Quat Q = quatPol(coef,ti,tf,t);
+    Quat dQ = dquatPol(coef,ti,tf,t);
     Vector3d w = (2*dQ*Q.inv()).getV();
     return w;
 }
 
-Vector3d TrajPlan::dwPol(double t, double ti, double tf, const std::vector<Quat> &coef)
+Vector3d TrajPlan::dwPol(const std::vector<Quat> &coef, double ti, double tf, double t)
 {
-    Quat Q = quatPol(t,ti,tf,coef);
-    Quat dQ = dquatPol(t,ti,tf,coef);
-    Quat ddQ = ddquatPol(t,ti,tf,coef);
+    Quat Q = quatPol(coef,ti,tf,t);
+    Quat dQ = dquatPol(coef,ti,tf,t);
+    Quat ddQ = ddquatPol(coef,ti,tf,t);
     Vector3d dw = (2*ddQ*Q.inv()-2*(dQ*Q.inv()/2)).getV();
     return dw;
 }

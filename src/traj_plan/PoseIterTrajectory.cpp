@@ -42,17 +42,35 @@ void PoseIterTrajectory::validateTime(double t)
     }    
 }
 
+std::vector<double> PoseIterTrajectory::getPosCoeff(char coord)
+{
+    switch (coord)
+    {
+    case 'x':
+        return posXCoeff;
+    case 'y':
+        return posYCoeff;
+    case 'z':
+        return posZCoeff;
+    default:
+        string errStr = "The required position coordinate ";
+        errStr.append(1, coord);
+        errStr.append(" does not exist.");
+        throw errStr;
+    }
+}
+
 double PoseIterTrajectory::getPos(char coord, double t)
 {
     validateTime(t);    
     switch (coord)
     {
     case 'x':
-        return TrajPlan::qPol(t, posXCoeff);
+        return TrajPlan::qPol(posXCoeff, t);
     case 'y':
-        return TrajPlan::qPol(t, posYCoeff);        
+        return TrajPlan::qPol(posYCoeff, t);        
     case 'z':
-        return TrajPlan::qPol(t, posZCoeff);
+        return TrajPlan::qPol(posZCoeff, t);
     default:
         string errStr = "The required position coordinate ";
         errStr.append(1, coord);
@@ -67,11 +85,11 @@ double PoseIterTrajectory::getLinVel(char coord, double t)
     switch (coord)
     {
     case 'x':
-        return TrajPlan::dqPol(t, posXCoeff);
+        return TrajPlan::dqPol(posXCoeff, t);
     case 'y':
-        return TrajPlan::dqPol(t, posYCoeff);        
+        return TrajPlan::dqPol(posYCoeff, t);
     case 'z':
-        return TrajPlan::dqPol(t, posZCoeff);
+        return TrajPlan::dqPol(posZCoeff, t);
     default:
         string errStr = "The required velocity ";
         errStr.append(1, coord);
@@ -86,11 +104,11 @@ double PoseIterTrajectory::getLinAcc(char coord, double t)
     switch (coord)
     {
     case 'x':
-        return TrajPlan::ddqPol(t, posXCoeff);
+        return TrajPlan::ddqPol(posXCoeff, t);
     case 'y':
-        return TrajPlan::ddqPol(t, posYCoeff);        
+        return TrajPlan::ddqPol(posYCoeff, t);
     case 'z':
-        return TrajPlan::ddqPol(t, posZCoeff);
+        return TrajPlan::ddqPol(posZCoeff, t);
     default:
         string errStr = "The required acceleration coordinate ";
         errStr.append(1, coord);
@@ -99,10 +117,59 @@ double PoseIterTrajectory::getLinAcc(char coord, double t)
     }
 }
 
+double PoseIterTrajectory::getMaxLinVel(char &coord)
+{
+    double maxt;
+    double maxdx, maxdy, maxdz, maxVel;
+    double R;
+    double a, b, c, d;
+
+    a = 20 * posXCoeff.at(5);
+    b = 12 * posXCoeff.at(4);
+    c = 6 * posXCoeff.at(3);
+    d = 2 * posXCoeff.at(2);
+
+    //R = (9*a*b*c - 27*a*a*d-2*b*b*b)/(54*a*a*a);    
+    /*cout << "R: " << R << endl;
+    cout << "S: " << S << endl;*/
+    maxt = - b/(3*a);
+    maxdx = abs(TrajPlan::dqPol(posXCoeff, maxt));
+    maxdy = abs(TrajPlan::dqPol(posYCoeff, maxt));
+    maxdz = abs(TrajPlan::dqPol(posZCoeff, maxt));
+
+    if (maxdx > maxdy)
+    {
+        if (maxdx > maxdz)
+        {
+            coord = 'x';
+            maxVel = maxdx;
+        }
+        else
+        {
+            coord = 'z';
+            maxVel = maxdz;
+        }        
+    }
+    else
+    {
+        if (maxdy > maxdz)
+        {
+            coord = 'y';
+            maxVel = maxdy;
+        }
+        else
+        {
+            coord = 'z';
+            maxVel = maxdz;
+        }        
+    }
+    return maxVel;
+}
+
 double PoseIterTrajectory::getOrientPart(char part, double t)
 {
     validateTime(t);
-    Quat Q = TrajPlan::quatPol(t, ti, tf, orientCoeff);
+    Quat Q = TrajPlan::quatPol(orientCoeff, ti, tf, t);
     double quatPart;
     switch(part)
     {
@@ -130,13 +197,13 @@ double PoseIterTrajectory::getOrientPart(char part, double t)
 Quat PoseIterTrajectory::getOrient(double t)
 {
     validateTime(t);
-    return TrajPlan::quatPol(t, ti, tf, orientCoeff);
+    return TrajPlan::quatPol(orientCoeff, ti, tf, t);
 }
 
 double PoseIterTrajectory::getAngVel(char coord, double t)
 {
     validateTime(t);
-    Vector3d w = TrajPlan::wPol(t, ti, tf, orientCoeff);
+    Vector3d w = TrajPlan::wPol(orientCoeff, ti, tf, t);
     switch (coord)
     {
     case 'x':
@@ -156,7 +223,7 @@ double PoseIterTrajectory::getAngVel(char coord, double t)
 double PoseIterTrajectory::getAngAcc(char coord, double t)
 {
     validateTime(t);
-    Vector3d dw = TrajPlan::dwPol(t, ti, tf, orientCoeff);
+    Vector3d dw = TrajPlan::dwPol(orientCoeff, ti, tf, t);
     switch (coord)
     {
     case 'x':
@@ -176,10 +243,10 @@ double PoseIterTrajectory::getAngAcc(char coord, double t)
 Pose PoseIterTrajectory::getPose(double t)
 {
     Vector3d pos;
-    pos(0) = TrajPlan::qPol(t, posXCoeff);
-    pos(1) = TrajPlan::qPol(t, posYCoeff);
-    pos(2) = TrajPlan::qPol(t, posZCoeff);
-    return Pose(pos, TrajPlan::quatPol(t, ti, tf, orientCoeff));
+    pos(0) = TrajPlan::qPol(posXCoeff, t);
+    pos(1) = TrajPlan::qPol(posYCoeff, t);
+    pos(2) = TrajPlan::qPol(posZCoeff, t);
+    return Pose(pos, TrajPlan::quatPol(orientCoeff, ti, tf, t));
 }
 
 VectorXd PoseIterTrajectory::getPoseVec(double t)
@@ -190,10 +257,10 @@ VectorXd PoseIterTrajectory::getPoseVec(double t)
 VectorXd PoseIterTrajectory::getVel(double t)
 {
     VectorXd vel(6);
-    vel(0) = TrajPlan::dqPol(t, posXCoeff);
-    vel(1) = TrajPlan::dqPol(t, posYCoeff);
-    vel(2) = TrajPlan::dqPol(t, posZCoeff);
-    vel.tail(3) = TrajPlan::wPol(t, ti, tf, orientCoeff);
+    vel(0) = TrajPlan::dqPol(posXCoeff, t);
+    vel(1) = TrajPlan::dqPol(posYCoeff, t);
+    vel(2) = TrajPlan::dqPol(posZCoeff, t);
+    vel.tail(3) = TrajPlan::wPol(orientCoeff, ti, tf, t);
     return vel;
 }
 

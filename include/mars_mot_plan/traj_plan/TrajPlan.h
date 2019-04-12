@@ -16,19 +16,19 @@ class TrajPlan
 private:
     static Quat quatDerNorm(Quat w, double dN, Quat q);
     static Quat quatSecDerNorm(Quat w, Quat dw, double dN, double ddN, Quat q);    
-    static Quat dquatPol(double t, double ti, double tf, const std::vector<Quat> &coef);
-    static Quat ddquatPol(double t, double ti, double tf, const std::vector<Quat> &coef);
+    static Quat dquatPol(const std::vector<Quat> &coef, double ti, double tf, double t);
+    static Quat ddquatPol(const std::vector<Quat> &coef, double ti, double tf, double t);
 
 public:
     static std::vector<double> polynomCoef(double qi, double dqi, double ddqi, double qf, double dqf, double ddqf, double ti, double tf);
-    static double qPol(double t, const std::vector<double> &coef);
-    static double dqPol(double t, const std::vector<double> &coef);
-    static double ddqPol(double t, const std::vector<double> &coef);
+    static double qPol(const std::vector<double> &coef, double t);
+    static double dqPol(const std::vector<double> &coef, double t);
+    static double ddqPol(const std::vector<double> &coef, double t);
 
     static std::vector<Quat> quatPolynomCoef(Quat qk, Vector3d wi, Vector3d dwi, Quat qf, Vector3d wf, Vector3d dwf, double ti, double tf);
-    static Quat quatPol(double t, double ti, double tf, const std::vector<Quat> &coef);
-    static Vector3d wPol(double t, double ti, double tf, const std::vector<Quat> &coef);
-    static Vector3d dwPol(double t, double ti, double tf, const std::vector<Quat> &coef);
+    static Quat quatPol(const std::vector<Quat> &coef, double ti, double tf, double t);
+    static Vector3d wPol(const std::vector<Quat> &coef, double ti, double tf, double t);
+    static Vector3d dwPol(const std::vector<Quat> &coef, double ti, double tf, double t);
 
     /**
      * Fifth order polynomial interpolation
