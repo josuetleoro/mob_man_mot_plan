@@ -20,7 +20,7 @@ using namespace std;
 using namespace Eigen;
 namespace plt = matplotlibcpp;
 
-std::vector<double> step_size_trans(std::vector<double> dx, std::vector<double> dy, std::vector<double> dz, double tf, double ts);
+std::vector<double> stepSizeTrans(std::vector<double> dx, std::vector<double> dy, std::vector<double> dz, double tf, double ts);
 template <class MatT>
 Eigen::Matrix<typename MatT::Scalar, MatT::ColsAtCompileTime, MatT::RowsAtCompileTime>
 pinv(const MatT &mat, typename MatT::Scalar tolerance = typename MatT::Scalar{1e-4}); // choose appropriately
@@ -33,11 +33,18 @@ int main(int argc, char **argv)
     ros::NodeHandle nh("~");
     MarsUR5 robot;
 
+    int testN;
+    if (!nh.hasParam("testN"))
+    {
+        std::cout << "Parameter testN not found. Please set node testN parameter." << endl;
+        return -1;
+    }
+    nh.getParam("testN", testN);
+
     // Algorithm parameters
     double t0 = 0, ts = 1 / 50.0;
     double alpha = 8;
     double KpPos = 10, KpOr = 20;
-    int testN = 4;
 
     // Get the initial joint states and desired final pose
     VectorXd q0;
@@ -86,7 +93,7 @@ int main(int argc, char **argv)
         **************** Step size variation law  ****************
         **********************************************************
     */
-    std::vector<double> trans = step_size_trans(desiredTraj.getTrajLinVel('x'), 
+    std::vector<double> trans = stepSizeTrans(desiredTraj.getTrajLinVel('x'), 
                                                 desiredTraj.getTrajLinVel('y'), 
                                                 desiredTraj.getTrajLinVel('z'),
                                                 tf, ts);
@@ -439,7 +446,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-std::vector<double> step_size_trans(std::vector<double> dx, std::vector<double> dy, std::vector<double> dz, double tf, double ts)
+std::vector<double> stepSizeTrans(std::vector<double> dx, std::vector<double> dy, std::vector<double> dz, double tf, double ts)
 {
     Vector3d maxdxi;
     double dx_max = 0.0, dy_max = 0.0, dz_max = 0.0;
@@ -474,7 +481,7 @@ std::vector<double> step_size_trans(std::vector<double> dx, std::vector<double> 
     std::vector<double> trans;
     std::vector<double> aux;
     std::vector<double>::iterator aux_it;
-    double delta_time;
+    double deltaTime;
     int k;
     double t;
     for (k = 0, t = 0; k < N; k++, t += ts)
@@ -483,8 +490,8 @@ std::vector<double> step_size_trans(std::vector<double> dx, std::vector<double> 
         {
             if (k > (N * (1 - 0.15)))
             {
-                delta_time = t - tb;
-                trans.push_back(a0 + a1 * (delta_time) + a2 * pow(delta_time, 2) + a3 * pow(delta_time, 3) + a4 * pow(delta_time, 4) + a5 * pow(delta_time, 5));
+                deltaTime = t - tb;
+                trans.push_back(a0 + a1 * (deltaTime) + a2 * pow(deltaTime, 2) + a3 * pow(deltaTime, 3) + a4 * pow(deltaTime, 4) + a5 * pow(deltaTime, 5));
             }
             else
             {
