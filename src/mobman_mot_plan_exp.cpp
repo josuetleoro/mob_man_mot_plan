@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     nh.getParam("testN", testN);
 
     // Algorithm parameters
-    double t0 = 0, ts = 1 / 50.0;
+    double t0 = 0, freq = 50;
     double alpha = 8;
     double KpPos = 10, KpOr = 20;    
 
@@ -79,97 +79,6 @@ int main(int argc, char **argv)
                               posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
                               t0, tf);
     
-    vector<double> time, x, y, z, dx, dy, dz, ddx, ddy, ddz;
-    vector<double> quatW, quatX, quatY, quatZ, wX, wY, wZ;
-    Quat quat;
-    VectorXd poseVec;
-    VectorXd vel;
-    //vector<>
-    double currTime = t0;
-    int k = 0;
-    std::cout << "Planning trajectory" << endl;
-    while (currTime < tf)
-    {
-        //time.push_back(currTime);
-        /*x.push_back(desiredTraj.getPos('x', currTime));
-        y.push_back(desiredTraj.getPos('y', currTime));
-        z.push_back(desiredTraj.getPos('z', currTime));*/
-        /*dx.push_back(desiredTraj.getLinVel('x', currTime));
-        dy.push_back(desiredTraj.getLinVel('y', currTime));
-        dz.push_back(desiredTraj.getLinVel('z', currTime));*/
-        /*ddx.push_back(desiredTraj.getLinAcc('x', currTime));
-        ddy.push_back(desiredTraj.getLinAcc('y', currTime));
-        ddz.push_back(desiredTraj.getLinAcc('z', currTime));*/
-        /*quatW.push_back(desiredTraj.getOrientPart('w', currTime));
-        quatX.push_back(desiredTraj.getOrientPart('x', currTime));
-        quatY.push_back(desiredTraj.getOrientPart('y', currTime));
-        quatZ.push_back(desiredTraj.getOrientPart('z', currTime));*/
-        /*wX.push_back(desiredTraj.getAngVel('x', currTime));
-        wY.push_back(desiredTraj.getAngVel('y', currTime));
-        wZ.push_back(desiredTraj.getAngVel('z', currTime));*/
-
-        poseVec = desiredTraj.getPoseVec(currTime);
-        x.push_back(poseVec(0));
-        y.push_back(poseVec(1));
-        z.push_back(poseVec(2));
-        quatW.push_back(poseVec(3));
-        quatX.push_back(poseVec(4));
-        quatY.push_back(poseVec(5));
-        quatZ.push_back(poseVec(6));
-
-        vel = desiredTraj.getVel(currTime);
-        dx.push_back(vel(0)); dy.push_back(vel(1)); dz.push_back(vel(2));
-        wX.push_back(vel(3)); wY.push_back(vel(4)); wZ.push_back(vel(5));       
-
-        //pose.push_back(desiredTraj.getPose(currTime));     
-        currTime += ts;
-    }
-
-    // Position and Orientation errors
-    /*plt::figure(1);
-    plt::subplot(1,2,1);
-    plt::named_plot("x", time, x);
-    plt::named_plot("y", time, y);
-    plt::named_plot("z", time, z);
-    plt::grid(true);
-    plt::xlabel("time");
-    plt::legend();
-
-    plt::subplot(1,2,2);
-    plt::named_plot("dx", time, dx);
-    plt::named_plot("dy", time, dy);
-    plt::named_plot("dz", time, dz);
-    plt::grid(true);
-    plt::xlabel("time");
-    plt::legend();   
-
-    plt::figure(2);
-    plt::subplot(2,2,1);
-    plt::named_plot("quatw", time, quatW);
-    plt::grid(true);
-    plt::legend();
-    plt::subplot(2,2,2);
-    plt::named_plot("quatx", time, quatX);
-    plt::grid(true);
-    plt::legend();
-    plt::subplot(2,2,3);
-    plt::named_plot("quaty", time, quatY);
-    plt::grid(true);
-    plt::legend();
-    plt::subplot(2,2,4);
-    plt::named_plot("quatz", time, quatZ);
-    plt::grid(true);
-    plt::legend();
-    plt::xlabel("time");
-
-    plt::figure(3);
-    plt::named_plot("wx", time, wX);
-    plt::named_plot("wy", time, wY);
-    plt::named_plot("wz", time, wZ);
-    plt::grid(true);
-    plt::legend();
-    plt::show();*/
-    
     /*
         **********************************************************
         **************** Step size variation law  ****************
@@ -179,24 +88,7 @@ int main(int argc, char **argv)
     double maxLinVel = desiredTraj.getMaxLinVel(maxLinVelCoord);
     std::vector<double> maxLinVelCoeff = desiredTraj.getPosCoeff(maxLinVelCoord);
     std::vector<double> trans;
-    /*
-    std::vector<double> time2;
-    currTime = t0;
-    k = 0;
-    while (currTime < tf)
-    {
-        time2.push_back(currTime);
-        trans.push_back(stepSizeTrans(maxLinVelCoeff, maxLinVel, tf, currTime));
-
-        //pose.push_back(desiredTraj.getPose(currTime));     
-        currTime += ts;
-    }
-    plt::figure(5);
-    plt::plot(time2, trans);
-    plt::grid(true);
-    plt::show();
-    */
-
+    
     /*
         **********************************************************
         ********************* Motion planning  *******************
@@ -238,7 +130,6 @@ int main(int argc, char **argv)
     // Create non-holonomic constrains matrix
     MatrixXd S = MatrixXd::Zero(10,9);
     S.block<8, 8>(2, 1).setIdentity();
-    //cout << "S: " << endl << S << endl;
     
     // Copy the initial values of the joint positions
     q.push_back(q0);
@@ -248,12 +139,17 @@ int main(int argc, char **argv)
     double MMman, UR5man, alphak, maxAlpha, minAlpha;
     high_resolution_clock::time_point start, end;
     start = high_resolution_clock::now();
-    k = 0;
-    currTime = 0.0;
+    
+    int k = 0;
+    double trajDuration = 0.0, ts;
+    ros::Time startTime = ros::Time::now();
+    ros::Time nowTime = startTime;
+    ros::Time prevTime = nowTime;
+    ros::Rate rate(freq);
     std::cout << "Motion planning started" << endl;
-    while (currTime < tf)
+    while (trajDuration < tf)
     {
-        timeObt.push_back(currTime);
+        timeObt.push_back(trajDuration);
         // Set the current joint positions to the robot
         robot.setJointPositions(q.at(k));
         
@@ -280,18 +176,18 @@ int main(int argc, char **argv)
         Wmatrix = Wjlim * WColElbow * WColWrist * invTq;
         
         // Compute the position and orientation error        
-        poseError.push_back(Pose::pose_diff(desiredTraj.getPose(currTime), xi.at(k)));
+        poseError.push_back(Pose::pose_diff(desiredTraj.getPose(trajDuration), xi.at(k)));
 
         // Compute the particular and homogeneous solutions
         // particular solution
         JBar = robot.getJacobianBar();
         JBarW = JBar * Wmatrix;
         invJBarW = pinv(JBarW);
-        partSol = invJBarW*(desiredTraj.getVel(currTime) + wError*poseError.at(k));
+        partSol = invJBarW*(desiredTraj.getVel(trajDuration) + wError*poseError.at(k));
         partSol = Wmatrix*partSol;
 
         // Compute the step size transition
-        trans.push_back(stepSizeTrans(maxLinVelCoeff, maxLinVel, tf, currTime));
+        trans.push_back(stepSizeTrans(maxLinVelCoeff, maxLinVel, tf, trajDuration));
 
         // homogeneous solution
         homSol = trans.at(k) * (Id - invJBarW*JBarW) * Wmatrix * dP;
@@ -322,20 +218,26 @@ int main(int argc, char **argv)
         dq.push_back(S * eta.at(k));
 
         // Update joint positions for next iteration
-        if (currTime < tf)
+        rate.sleep();
+        nowTime = ros::Time::now();
+        trajDuration = (nowTime - startTime).toSec();
+        if (trajDuration < tf)
         {
+            ts = (nowTime - prevTime).toSec();
             q.push_back(q.at(k) + dq.at(k)*ts);
-        }
-        currTime += ts;
+            prevTime = nowTime;
+        }        
         k++;
     }
     end = high_resolution_clock::now();
 
     // Substract final iteration and time
     k = k - 1;
-    currTime = currTime - ts;
-    double finalTimeDiff = tf - currTime;
-    //cout << "Time diff: " << finalTimeDiff << endl;
+    double finalTimeDiff = tf - trajDuration;
+    cout << "tf: " << tf << endl;
+    cout << "trajDuration: " << trajDuration << endl;
+    cout << "Time diff: " << finalTimeDiff << endl;
+    
     if (abs(finalTimeDiff) < 1e-3)
     {
         // Compute the execution time in us
@@ -350,7 +252,7 @@ int main(int argc, char **argv)
     }
 
     // Show final position and orientation errors
-    std::cout << "Desired final pos: " << endl << desiredTraj.getPose(currTime) << endl;
+    std::cout << "Desired final pos: " << endl << desiredTraj.getPose(trajDuration) << endl;
     std::cout << "Obtained final pos: " << endl << xi.at(k) << endl;
     std::cout << "Final pos error: " << endl << poseError.at(k).head(3).transpose() << endl;
     std::cout << "Pos error norm: " << endl << poseError.at(k).head(3).norm() << endl;
