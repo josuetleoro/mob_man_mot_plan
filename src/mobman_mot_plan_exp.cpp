@@ -20,12 +20,13 @@ using namespace std;
 using namespace Eigen;
 namespace plt = matplotlibcpp;
 
-std::vector<double> step_size_trans(std::vector<double> dx, std::vector<double> dy, std::vector<double> dz, double tf, double ts);
+double stepSizeTrans(std::vector<double> coeff, double maxVel, double tf, double t);
 template <class MatT>
 Eigen::Matrix<typename MatT::Scalar, MatT::ColsAtCompileTime, MatT::RowsAtCompileTime>
 pinv(const MatT &mat, typename MatT::Scalar tolerance = typename MatT::Scalar{1e-4}); // choose appropriately
 
 void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf);
+double findFourthOrderMax(std::vector<double> coef);
 
 int main(int argc, char **argv)
 {
@@ -33,18 +34,25 @@ int main(int argc, char **argv)
     ros::NodeHandle nh("~");
     MarsUR5 robot;
 
+    int testN;
+    if (!nh.hasParam("testN"))
+    {
+        std::cout << "Parameter testN not found. Please set node testN parameter." << endl;
+        return -1;
+    }
+    nh.getParam("testN", testN);
+
     // Algorithm parameters
     double t0 = 0, ts = 1 / 50.0;
     double alpha = 8;
-    double KpPos = 10, KpOr = 20;
-    int testN = 1;
+    double KpPos = 10, KpOr = 20;    
 
     // Get the initial joint states and desired final pose
     VectorXd q0;
     Pose posef;
     double tf;
     testPointsMaxLinVel(testN, q0, posef, tf);    
-    cout << "Initial joint angles: " << endl
+    std::cout << "Initial joint angles: " << endl
          << "tx: " << q0(0) << endl
          << "ty: " << q0(1) << endl
          << "phi: " << q0(2) * 180 / M_PI << endl
@@ -57,10 +65,10 @@ int main(int argc, char **argv)
          << "q6: " << q0(9) * 180 / M_PI << endl << endl;
     robot.setJointPositions(q0);    
     Pose pose0(robot.getEETransform());
-    cout << "T0:" << endl << pose0.matrixRep() << endl;
-    cout << "Pose0:" << endl << pose0 << endl << endl;
-    cout << "Tf:" << endl << posef.matrixRep() << endl;
-    cout << "Posef:" << endl << posef << endl << endl;
+    std::cout << "T0:" << endl << pose0.matrixRep() << endl;
+    std::cout << "Pose0:" << endl << pose0 << endl << endl;
+    std::cout << "Tf:" << endl << posef.matrixRep() << endl;
+    std::cout << "Posef:" << endl << posef << endl << endl;
     
     /*
         **********************************************************
@@ -79,10 +87,10 @@ int main(int argc, char **argv)
     //vector<>
     double currTime = t0;
     int k = 0;
-    cout << "Planning trajectory" << endl;
+    std::cout << "Planning trajectory" << endl;
     while (currTime < tf)
     {
-        time.push_back(currTime);
+        //time.push_back(currTime);
         /*x.push_back(desiredTraj.getPos('x', currTime));
         y.push_back(desiredTraj.getPos('y', currTime));
         z.push_back(desiredTraj.getPos('z', currTime));*/
@@ -118,7 +126,7 @@ int main(int argc, char **argv)
     }
 
     // Position and Orientation errors
-    plt::figure(1);
+    /*plt::figure(1);
     plt::subplot(1,2,1);
     plt::named_plot("x", time, x);
     plt::named_plot("y", time, y);
@@ -160,38 +168,51 @@ int main(int argc, char **argv)
     plt::named_plot("wz", time, wZ);
     plt::grid(true);
     plt::legend();
-    plt::show();
+    plt::show();*/
     
     /*
         **********************************************************
         **************** Step size variation law  ****************
         **********************************************************
     */
-    /*std::vector<double> trans = step_size_trans(desiredTraj.getTrajLinVel('x'), 
-                                                desiredTraj.getTrajLinVel('y'), 
-                                                desiredTraj.getTrajLinVel('z'),
-                                                tf, ts);*/
-    /*plt::figure(5);
-    plt::plot(desiredTraj.getTrajTime(), trans);
+    char maxLinVelCoord;
+    double maxLinVel = desiredTraj.getMaxLinVel(maxLinVelCoord);
+    std::vector<double> maxLinVelCoeff = desiredTraj.getPosCoeff(maxLinVelCoord);
+    std::vector<double> trans;
+    /*
+    std::vector<double> time2;
+    currTime = t0;
+    k = 0;
+    while (currTime < tf)
+    {
+        time2.push_back(currTime);
+        trans.push_back(stepSizeTrans(maxLinVelCoeff, maxLinVel, tf, currTime));
+
+        //pose.push_back(desiredTraj.getPose(currTime));     
+        currTime += ts;
+    }
+    plt::figure(5);
+    plt::plot(time2, trans);
     plt::grid(true);
-    plt::show();*/
-    
+    plt::show();
+    */
+
     /*
         **********************************************************
         ********************* Motion planning  *******************
         **********************************************************
     */
-/*
+
     // Initialize all the variables
-    std::vector<VectorXd> q;    q.resize(N);    // 10 elements
-    //std::vector<VectorXd> xi;   xi.resize(N);   // 7 elements
-    std::vector<VectorXd> eta;  eta.resize(N);  // 9 elements
-    std::vector<VectorXd> dq;   dq.resize(N);   // 10 elements
-    std::vector<Pose> xi;       xi.resize(N);   
-    std::vector<VectorXd> poseError; poseError.resize(N);   // 6 elements
-    std::vector<double> wMeasure; wMeasure.resize(N);
-    std::vector<double> MMmanip;  MMmanip.resize(N);
-    std::vector<double> UR5manip; UR5manip.resize(N);
+    std::vector<double> timeObt;
+    std::vector<VectorXd> q;    // 10 elements
+    std::vector<VectorXd> eta;  // 9 elements
+    std::vector<VectorXd> dq;   // 10 elements
+    std::vector<Pose> xi;   
+    std::vector<VectorXd> poseError; // 6 elements
+    std::vector<double> wMeasure;
+    std::vector<double> MMmanip; 
+    std::vector<double> UR5manip;
 
     // Error weighting matrix
     MatrixXd wError = MatrixXd::Zero(6, 6);
@@ -202,9 +223,10 @@ int main(int argc, char **argv)
     // Joint limits and collision avoidance variables
     MatrixXd invTq = robot.getVelsNormMatrix();
     MatrixXd Wjlim, WColElbow, WColWrist;
-    std::vector<double> elbowDist; elbowDist.resize(N);
-    std::vector<double> wristDist; wristDist.resize(N);
-    std::vector<double> wristHeight; wristHeight.resize(N);   
+    std::vector<double> elbowDistVector;
+    std::vector<double> wristDistVector;
+    std::vector<double> wristHeightVector;
+    double elbowDist, wristDist, wristHeight;
     Vector3d wristPos;
     VectorXd errorFb = VectorXd::Zero(6);
     VectorXd partSol = VectorXd::Zero(6);
@@ -218,22 +240,25 @@ int main(int argc, char **argv)
     S.block<8, 8>(2, 1).setIdentity();
     //cout << "S: " << endl << S << endl;
     
-    // Copy the initial values of the motion planning
-    q.at(0) = q0;
-    xi.at(0) = desiredTraj.poseAt(0);
+    // Copy the initial values of the joint positions
+    q.push_back(q0);
 
     MatrixXd JBar, JBarW, invJBarW, Wmatrix;
     VectorXd MMdP, UR5dP, dP;
     double MMman, UR5man, alphak, maxAlpha, minAlpha;
+    high_resolution_clock::time_point start, end;
     start = high_resolution_clock::now();
-    int k;
-    for (k = 0; k < N; k++)
+    k = 0;
+    currTime = 0.0;
+    std::cout << "Motion planning started" << endl;
+    while (currTime < tf)
     {
+        timeObt.push_back(currTime);
         // Set the current joint positions to the robot
         robot.setJointPositions(q.at(k));
-
+        
         // Get the kth pose
-        xi.at(k) = Pose::matrixToPose(robot.getEETransform());
+        xi.push_back(Pose::matrixToPose(robot.getEETransform()));
 
         // Replace the elements of the nonholonomic constraints matrix
         S(0, 0) = cos(q.at(k)(2));  S(1, 0) = sin(q.at(k)(2));
@@ -242,26 +267,31 @@ int main(int argc, char **argv)
         robot.getManipGrads(MMdP, MMman, UR5dP, UR5man);
         dP =  UR5man*MMdP + MMman*UR5dP;
         dP =  S.transpose()*dP;
-        wMeasure.at(k) = MMman * UR5man;
-        MMmanip.at(k) = MMman; UR5manip.at(k) = UR5man;
+        wMeasure.push_back(MMman * UR5man);
+        MMmanip.push_back(MMman); UR5manip.push_back(UR5man);
 
         // Compute the weighting matrices
         robot.getJLimWeight(Wjlim);
-        robot.getElbowColWeight(0.001, 50, 1, WColElbow, elbowDist.at(k));
-        robot.getWristColWeight(0.001, 50, 1, WColWrist, wristDist.at(k), wristPos);
-        wristHeight.at(k) = wristPos(2);
+        robot.getElbowColWeight(0.001, 50, 1, WColElbow, elbowDist);
+        robot.getWristColWeight(0.001, 50, 1, WColWrist, wristDist, wristPos);
+        elbowDistVector.push_back(elbowDist);
+        wristDistVector.push_back(wristDist);
+        wristHeightVector.push_back(wristPos(2));
         Wmatrix = Wjlim * WColElbow * WColWrist * invTq;
         
         // Compute the position and orientation error        
-        poseError.at(k) = Pose::pose_diff(desiredTraj.poseAt(k), xi.at(k));
+        poseError.push_back(Pose::pose_diff(desiredTraj.getPose(currTime), xi.at(k)));
 
         // Compute the particular and homogeneous solutions
         // particular solution
         JBar = robot.getJacobianBar();
         JBarW = JBar * Wmatrix;
         invJBarW = pinv(JBarW);
-        partSol = invJBarW*(desiredTraj.velocitiesAt(k) + wError*poseError.at(k));
+        partSol = invJBarW*(desiredTraj.getVel(currTime) + wError*poseError.at(k));
         partSol = Wmatrix*partSol;
+
+        // Compute the step size transition
+        trans.push_back(stepSizeTrans(maxLinVelCoeff, maxLinVel, tf, currTime));
 
         // homogeneous solution
         homSol = trans.at(k) * (Id - invJBarW*JBarW) * Wmatrix * dP;
@@ -271,62 +301,68 @@ int main(int argc, char **argv)
         robot.getSelfMotionLims(partSol, homSol, maxAlpha, minAlpha);
         if (maxAlpha < minAlpha)
         {
-            cout << "\033[1;31mCould not acheive task that complies with joint velocity limits\033[0m" << endl;
+            std::cout << "\033[1;31mCould not acheive task that complies with joint velocity limits\033[0m" << endl;
             break;
         }
         // Saturate alpha in case is out of limits
         alphak = alpha;
         if (alphak > maxAlpha)
         {
-            cout << "\033[1;33mPotential velocity limit reached. Saturating step size.\033[0m" << endl;
+            std::cout << "\033[1;33mPotential velocity limit reached. Saturating step size.\033[0m" << endl;
             alphak = maxAlpha;
         }
         if (alphak < minAlpha)
         {
-            cout << "\033[1;33mPotential velocity limit reached. Saturating step size.\033[0m" << endl;
+            std::cout << "\033[1;33mPotential velocity limit reached. Saturating step size.\033[0m" << endl;
             alphak = minAlpha;
         }
 
         // Compute the joint velocities
-        eta.at(k) = partSol + alphak * homSol;
-        dq.at(k) = S * eta.at(k);
+        eta.push_back(partSol + alphak * homSol);
+        dq.push_back(S * eta.at(k));
 
         // Update joint positions for next iteration
-        if (k < (N - 1))
+        if (currTime < tf)
         {
-            q.at(k+1) = q.at(k) + dq.at(k)*ts;
-            //cout << "q(k+1):" << endl << q.at(k+1).transpose() << endl;
-        }        
+            q.push_back(q.at(k) + dq.at(k)*ts);
+        }
+        currTime += ts;
+        k++;
     }
     end = high_resolution_clock::now();
-    if (k == N)
+
+    // Substract final iteration and time
+    k = k - 1;
+    currTime = currTime - ts;
+    double finalTimeDiff = tf - currTime;
+    //cout << "Time diff: " << finalTimeDiff << endl;
+    if (abs(finalTimeDiff) < 1e-3)
     {
         // Compute the execution time in us
-        time_ns = (double)(duration_cast<nanoseconds>(end - start).count());
-        cout << "Motion planning completed. Number of iterations: " << k << endl;
-        cout << "Motion planning execution time: " << time_ns/1000000 << "ms" << endl;
-        cout << "Motion planning mean time: " << time_ns/(1000*k) << "us" << endl;
+        double time_ns = (double)(duration_cast<nanoseconds>(end - start).count());
+        std::cout << "Motion planning completed. Number of iterations: " << k << endl;
+        std::cout << "Motion planning execution time: " << time_ns/1000000 << "ms" << endl;
+        std::cout << "Motion planning mean time: " << time_ns/(1000*k) << "us" << endl;
     }
     else
     {
-        cout << "\033[1;31mTask could not be completed\033[0m" << endl;
+        std::cout << "\033[1;31mTask could not be completed\033[0m" << endl;
     }
 
-    k = k - 1; // Final element for the obtained data 
     // Show final position and orientation errors
-    cout << "Desired final pos: " << endl << desiredTraj.poseAt(k) << endl;
-    cout << "Obtained final pos: " << endl << xi.at(k) << endl;
-    cout << "Final pos error: " << endl << poseError.at(k).head(3).transpose() << endl;
-    cout << "Pos error norm: " << endl << poseError.at(k).head(3).norm() << endl;
-    cout << "Final orientation error: " << endl << poseError.at(k).tail(3).transpose() << endl;
-    cout << "Orientation error norm: " << endl << poseError.at(k).tail(3).norm() << endl;
-*/
+    std::cout << "Desired final pos: " << endl << desiredTraj.getPose(currTime) << endl;
+    std::cout << "Obtained final pos: " << endl << xi.at(k) << endl;
+    std::cout << "Final pos error: " << endl << poseError.at(k).head(3).transpose() << endl;
+    std::cout << "Pos error norm: " << endl << poseError.at(k).head(3).norm() << endl;
+    std::cout << "Final orientation error: " << endl << poseError.at(k).tail(3).transpose() << endl;
+    std::cout << "Orientation error norm: " << endl << poseError.at(k).tail(3).norm() << endl;
+
     /*
         **********************************************************
         ********** Plot the obtained trajectory data  ************
         **********************************************************
     */
-    /*double NObt = k + 1;
+    double NObt = k + 1;
     std::vector<double> epos_x, epos_y, epos_z, eor_x, eor_y, eor_z;
     std::vector<double> mobPlat_x, mobPlat_y, z_pj, qa1, qa2, qa3, qa4, qa5, qa6;
     std::vector<double> mobPlat_v, mobPlat_w, dz_pj, dqa1, dqa2, dqa3, dqa4, dqa5, dqa6;
@@ -364,17 +400,7 @@ int main(int argc, char **argv)
     }
     MatrixXd qlimits = robot.getJointLim();
     VectorXd dqlimits = robot.getJointVelLim();
-    vector<double>::const_iterator first = desiredTraj.getTrajTime().begin();
-    vector<double>::const_iterator last = desiredTraj.getTrajTime().begin() + NObt;
-    std::vector<double> timeObt(first, last);
-    cout << "timeObt size:" << timeObt.size() << endl;
-
-    if (NObt < N)
-    {
-        wMeasure.resize(NObt);
-        MMmanip.resize(NObt);
-        UR5manip.resize(NObt);
-    }
+    std::cout << "timeObt size:" << timeObt.size() << endl;
 
     // Figure (1)
     // Manipulability plots
@@ -483,74 +509,35 @@ int main(int argc, char **argv)
     plt::grid(true);
     plt::xlabel("time");    
     plt::legend();
-    plt::show();*/
+    plt::show();
 
     return 0;
 }
 
-std::vector<double> step_size_trans(std::vector<double> dx, std::vector<double> dy, std::vector<double> dz, double tf, double ts)
+double stepSizeTrans(std::vector<double> coeff, double maxVel, double tf, double t)
 {
-    Vector3d maxdxi;
-    double dx_max = 0.0, dy_max = 0.0, dz_max = 0.0;
-    // Get the maximum of the absolute values of each vector
-    for (uint i = 0; i < dx.size(); i++)
-    {
-        if (dx.at(i) < 0)
-            dx.at(i) *= -1;
-        if (dx_max < dx.at(i))
-            dx_max = dx.at(i);
-        if (dy.at(i) < 0)
-            dy.at(i) *= -1;
-        if (dy_max < dy.at(i))
-            dy_max = dy.at(i);
-        if (dz.at(i) < 0)
-            dz.at(i) *= -1;
-        if (dz_max < dz.at(i))
-            dz_max = dz.at(i);
-    }
-    if (dx_max < 1e-5)
-        dx_max = 1;
-    if (dy_max < 1e-5)
-        dy_max = 1;
-    if (dz_max < 1e-5)
-        dz_max = 1;
-    maxdxi << dx_max, dy_max, dz_max;
-
-    double N = dx.size();
+    double deltaTime;
     double tb = tf * (1 - 0.15);
+    double stepSize;
     double T = tf - tb;
     double a0 = 1, a1 = 0, a2 = 0, a3 = -10 / pow(T, 3), a4 = 15 / pow(T, 4), a5 = -6 / pow(T, 5);
-    std::vector<double> trans;
-    std::vector<double> aux;
-    std::vector<double>::iterator aux_it;
-    double delta_time;
-    int k;
-    double t;
-    for (k = 0, t = 0; k < N; k++, t += ts)
+    if (t > (tf / 2))
     {
-        if (k > (N / 2))
+        if (t > tb)
         {
-            if (k > (N * (1 - 0.15)))
-            {
-                delta_time = t - tb;
-                trans.push_back(a0 + a1 * (delta_time) + a2 * pow(delta_time, 2) + a3 * pow(delta_time, 3) + a4 * pow(delta_time, 4) + a5 * pow(delta_time, 5));
-            }
-            else
-            {
-                trans.push_back(1.0);
-            }
+            deltaTime = t - tb;
+            stepSize = a0 + a1 * (deltaTime) + a2 * pow(deltaTime, 2) + a3 * pow(deltaTime, 3) + a4 * pow(deltaTime, 4) + a5 * pow(deltaTime, 5);
         }
         else
         {
-            aux.push_back(dx.at(k) / dx_max);
-            aux.push_back(dy.at(k) / dy_max);
-            aux.push_back(dz.at(k) / dz_max);
-            aux_it = std::max_element(aux.begin(), aux.end());
-            trans.push_back(*aux_it);
-            aux.clear();
+            stepSize = 1.0;
         }
     }
-    return trans;
+    else
+    {
+        stepSize = abs(TrajPlan::dqPol(coeff, t)) / maxVel;
+    }
+    return stepSize;
 }
 
 template <class MatT>
@@ -702,3 +689,4 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
     eigen_quatf = Quaterniond(eigen_angaxis_des);
     posef = Pose(pos_des, Quat(eigen_quatf));
 }
+
