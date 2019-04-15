@@ -18,15 +18,15 @@ private:
     Pose posei, posef;
     std::vector<double> posXCoeff, posYCoeff, posZCoeff;
     std::vector<Quat> orientCoeff;
-    std::vector<Pose> poses;
-    std::vector<VectorXd> poses_vec_rep;
-    std::vector<VectorXd> velocities;
+    
     /**
      * Validate the time is inside the trajectory
      */
     void validateTime(double t);
 
 public:
+    PoseIterTrajectory();
+
     // Creates object and computes the coefficients for the trajectory
     PoseIterTrajectory(Pose posei, Vector3d linVeli, Vector3d linAcci, Vector3d angVeli, Vector3d angAcci,
                    Pose posef, Vector3d linVelf, Vector3d linAccf, Vector3d angVelf, Vector3d angAccf,

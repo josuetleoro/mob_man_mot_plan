@@ -6,6 +6,16 @@ using namespace std;
 using namespace Eigen;
 namespace plt = matplotlibcpp;
 
+
+PoseIterTrajectory::PoseIterTrajectory()
+{
+    ti = 0, tf = 0;
+    posXCoeff.clear();
+    posYCoeff.clear();
+    posZCoeff.clear();
+    orientCoeff.clear();
+};
+
 // Computes the coefficients for the trajectory
 PoseIterTrajectory::PoseIterTrajectory(Pose posei, Vector3d linVeli, Vector3d linAcci, Vector3d angVeli, Vector3d angAcci,
                                        Pose posef, Vector3d linVelf, Vector3d linAccf, Vector3d angVelf, Vector3d angAccf,
