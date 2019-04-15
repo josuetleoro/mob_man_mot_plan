@@ -33,6 +33,14 @@ Quat::Quat(Quaterniond eigen_quat)
 	this->z = eigen_quat.vec()(2);
 }
 
+Quat::Quat(const geometry_msgs::Quaternion geom_msg_quat)
+{
+	this->w = geom_msg_quat.w;
+	this->x = geom_msg_quat.x;
+	this->y = geom_msg_quat.y;
+	this->z = geom_msg_quat.z;
+}
+
 double Quat::getS() const
 {
 	return this->w;

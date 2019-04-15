@@ -4,6 +4,7 @@
 #include <math.h>
 #include <Eigen/Dense>
 #include <iostream>
+#include <geometry_msgs/Quaternion.h>
 using namespace std;
 using namespace Eigen;
 
@@ -18,6 +19,7 @@ public:
 	Quat(double w, double x, double y, double z);
 	Quat(double w, Vector3d v);
 	Quat(Quaterniond eigen_quat);
+	Quat(const geometry_msgs::Quaternion geom_msg_quat);
 	double getS() const;
 	Vector3d getV() const;
 	double norm() const;

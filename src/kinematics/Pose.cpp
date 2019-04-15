@@ -14,7 +14,7 @@ Pose::Pose(double x, double y, double z, double quat_w, double quat_x, double qu
 	this->orientation = Quat(quat_w, quat_x, quat_y, quat_z);
 }
 
-Pose::Pose(Vector3d position, Quat orientation)
+Pose::Pose(const Vector3d &position, const Quat &orientation)
 {
 	this->position = position;
 	this->orientation = orientation;
@@ -24,6 +24,14 @@ Pose::Pose(const Matrix4d &T)
 {
     this->position = T.col(3).head(3);
     this->orientation = Quat::rotm2quat(T.block<3, 3>(0, 0));
+}
+
+Pose::Pose(const geometry_msgs::Pose &pose)
+{
+    this->position(0) = pose.position.x;
+	this->position(1) = pose.position.y;
+	this->position(2) = pose.position.z;
+	this->orientation = Quat(pose.orientation);
 }
 
 Vector3d Pose::getPos() const
@@ -102,6 +110,19 @@ Matrix4d Pose::poseToMatrix(const Pose & pose)
     T.block<3, 3>(0, 0) = quat.toRotationMatrix();
     T.col(3).head(3) = pose.position;
     return T;    
+}
+
+geometry_msgs::Pose Pose::poseToGeomMsgPose(const Pose & pose)
+{
+    geometry_msgs::Pose pose_msg;
+    pose_msg.position.x = pose.position(0);
+    pose_msg.position.y = pose.position(1);
+    pose_msg.position.z = pose.position(2);
+    pose_msg.orientation.w = pose.orientation.w;
+    pose_msg.orientation.x = pose.orientation.x;
+    pose_msg.orientation.y = pose.orientation.y;
+    pose_msg.orientation.z = pose.orientation.z;
+    return pose_msg;	
 }
 
 ostream & operator<<(ostream & os, const Pose & pose)
