@@ -18,12 +18,26 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   sensor_msgs
+  geometry_msgs
+  actionlib
 )
 
 ## System dependencies are found with CMake's conventions
 find_package(Eigen3 REQUIRED)
 find_package(PythonLibs 2.7)
 
+## Generate actions in the 'action' folder
+add_action_files(
+  FILES
+  PoseTrajectory.action
+  )
+
+## Generate added messages and services with any dependencies listed here
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+  actionlib_msgs
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -74,6 +88,16 @@ add_executable(mobman_mot_plan_exp_node src/mobman_mot_plan_exp.cpp ${SOURCE_FIL
 target_include_directories(mobman_mot_plan_exp_node PRIVATE ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(mobman_mot_plan_exp_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
 add_dependencies(mobman_mot_plan_exp_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(mars_mot_plan_sim_server_node src/mars_mot_plan_sim_server.cpp ${SOURCE_FILES})
+target_include_directories(mars_mot_plan_sim_server_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(mars_mot_plan_sim_server_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(mars_mot_plan_sim_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(mars_mot_plan_exp_server_node src/mars_mot_plan_exp_server.cpp ${SOURCE_FILES})
+target_include_directories(mars_mot_plan_exp_server_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(mars_mot_plan_exp_server_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(mars_mot_plan_exp_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 #############
 ## Install ##

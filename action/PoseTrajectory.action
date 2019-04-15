@@ -1,0 +1,12 @@
+#goal defintion
+float32 trajTime
+geometry_msgs/Pose desPose
+---
+#result definition
+float32 finalTime
+geometry_msgs/Pose finalPose
+geometry_msgs/Twist finalError
+---
+#feedback
+float32 currTime
+geometry_msgs/Pose currPose
