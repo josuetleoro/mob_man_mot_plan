@@ -42,6 +42,8 @@ int main(int argc, char **argv)
     }
     nh.getParam("testN", testN);
 
+    cout << "Test number: " << testN << endl;
+
     // Algorithm parameters
     double t0 = 0, freq = 50;
     double alpha = 8;
@@ -147,8 +149,10 @@ int main(int argc, char **argv)
     ros::Time prevTime = nowTime;
     ros::Rate rate(freq);
     std::cout << "Motion planning started" << endl;
+    std::cout << "Desired final time: " << tf << endl;
     while (trajDuration < tf)
     {
+        std::cout << "Current time: " << trajDuration << "s" << endl;
         timeObt.push_back(trajDuration);
         // Set the current joint positions to the robot
         robot.setJointPositions(q.at(k));
@@ -218,13 +222,15 @@ int main(int argc, char **argv)
         dq.push_back(S * eta.at(k));
 
         // Update joint positions for next iteration
-        rate.sleep();
-        nowTime = ros::Time::now();
-        trajDuration = (nowTime - startTime).toSec();
         if (trajDuration < tf)
         {
+            rate.sleep();
+            nowTime = ros::Time::now();
+            trajDuration = (nowTime - startTime).toSec();
             ts = (nowTime - prevTime).toSec();
+
             q.push_back(q.at(k) + dq.at(k)*ts);
+            
             prevTime = nowTime;
         }        
         k++;
