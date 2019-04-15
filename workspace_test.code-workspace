@@ -52,7 +52,11 @@
 			"atomic": "cpp",
 			"strstream": "cpp",
 			"thread": "cpp",
-			"typeindex": "cpp"
+			"typeindex": "cpp",
+			"list": "cpp",
+			"csignal": "cpp",
+			"bitset": "cpp",
+			"iomanip": "cpp"
 		},
 		"python.autoComplete.extraPaths": [
 			"/opt/ros/kinetic/lib/python2.7/dist-packages"

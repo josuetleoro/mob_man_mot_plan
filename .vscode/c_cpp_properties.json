@@ -7,6 +7,7 @@
             },
             "includePath": [
                 "/opt/ros/kinetic/include",
+                "/opt/ros/melodic/include",
                 "${workspaceRoot}/include/*",
                 "/usr/include/eigen3",
                 "/usr/include/",
