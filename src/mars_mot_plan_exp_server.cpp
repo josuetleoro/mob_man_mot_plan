@@ -81,6 +81,13 @@ class MarsPoseTrajActionSim
 
         // read desired time and pose from goal
         tf = goal->trajTime;
+        if (tf < 0.1)
+        {
+            ROS_ERROR("%s: received trajectory time is too short.", action_name.c_str());
+            // set the action state to abort
+            as.setAborted();
+            return;
+        }
         posef = Pose(goal->desPose);
         std::cout << "Tf:" << endl
                   << posef.matrixRep() << endl;
@@ -103,6 +110,8 @@ class MarsPoseTrajActionSim
             **************** Step size variation law  ****************
             **********************************************************
         */
+        trans.clear();
+        maxLinVelCoeff.clear();
         char maxLinVelCoord;
         double maxLinVel = desiredTraj.getMaxLinVel(maxLinVelCoord);
         maxLinVelCoeff = desiredTraj.getPosCoeff(maxLinVelCoord);

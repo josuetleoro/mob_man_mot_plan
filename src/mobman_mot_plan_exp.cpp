@@ -122,9 +122,8 @@ int main(int argc, char **argv)
     std::vector<double> wristHeightVector;
     double elbowDist, wristDist, wristHeight;
     Vector3d wristPos;
-    VectorXd errorFb = VectorXd::Zero(6);
-    VectorXd partSol = VectorXd::Zero(6);
-    VectorXd homSol = VectorXd::Zero(6);
+    VectorXd partSol = VectorXd::Zero(9);
+    VectorXd homSol = VectorXd::Zero(9);
 
     // Identity matrix of size delta=9, delta=M-1 =>10DOF-1
     MatrixXd Id = MatrixXd::Identity(9, 9);

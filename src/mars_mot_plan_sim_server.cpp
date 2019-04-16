@@ -23,7 +23,7 @@ pinv(const MatT &mat, typename MatT::Scalar tolerance = typename MatT::Scalar{1e
 
 class MarsPoseTrajActionSim
 {
-  public:
+public:
     MarsPoseTrajActionSim(std::string name) : as(nh_, name, boost::bind(&MarsPoseTrajActionSim::executeCB, this, _1), false),
                                               action_name(name)
     {
@@ -81,6 +81,13 @@ class MarsPoseTrajActionSim
 
         // read desired time and pose from goal
         tf = goal->trajTime;
+        if (tf < 0.1)
+        {
+            ROS_ERROR("%s: received trajectory time is too short.", action_name.c_str());
+            // set the action state to abort
+            as.setAborted();
+            return;
+        }
         posef = Pose(goal->desPose);
         std::cout << "Tf:" << endl
                   << posef.matrixRep() << endl;
@@ -103,6 +110,8 @@ class MarsPoseTrajActionSim
             **************** Step size variation law  ****************
             **********************************************************
         */
+        trans.clear();
+        maxLinVelCoeff.clear();
         char maxLinVelCoord;
         double maxLinVel = desiredTraj.getMaxLinVel(maxLinVelCoord);
         maxLinVelCoeff = desiredTraj.getPosCoeff(maxLinVelCoord);
@@ -252,7 +261,7 @@ class MarsPoseTrajActionSim
         {
             ROS_ERROR("Task could not be completed. ");
             // remove last element of vectors that have already been increased
-            time.pop_back();    
+            time.pop_back();
             wMeasure.pop_back();
             MMmanip.pop_back();
             UR5manip.pop_back();
@@ -277,13 +286,14 @@ class MarsPoseTrajActionSim
         {
             plotResults(time.size());
         }
-        catch (const std::exception& ex)
+        catch (const std::exception &ex)
         {
-            cout << "Could not plot results. " << endl << ex.what() << endl;
-        }        
+            cout << "Could not plot results. " << endl
+                 << ex.what() << endl;
+        }
     }
 
-  private:
+private:
     ros::NodeHandle nh_;
     actionlib::SimpleActionServer<mars_mot_plan::PoseTrajectoryAction> as;
     std::string action_name;
@@ -392,7 +402,7 @@ class MarsPoseTrajActionSim
         }
         MatrixXd qlimits = robot.getJointLim();
         VectorXd dqlimits = robot.getJointVelLim();
-        
+
         // Figure (1)
         // Manipulability plots
         plt::figure_size(1600, 900);
