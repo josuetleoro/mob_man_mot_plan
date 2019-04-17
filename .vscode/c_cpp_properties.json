@@ -9,6 +9,7 @@
                 "/opt/ros/kinetic/include",
                 "/opt/ros/melodic/include",
                 "${workspaceRoot}/include/*",
+                "${workspaceRoot}/../../devel/include/*",
                 "/usr/include/eigen3",
                 "/usr/include/",
                 "/usr/include/python2.7/"
