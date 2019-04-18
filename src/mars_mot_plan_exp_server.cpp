@@ -108,7 +108,7 @@ public:
         x += jointStateTs * linVel * cos(phi);
         y += jointStateTs * linVel * sin(phi);
         phi += jointStateTs * angVel;
-        cout << "mob_plat_pos: " << x << ", " << y << ", "<< phi << endl;
+        //cout << "mob_plat_pos: " << x << ", " << y << ", "<< phi << endl;
         currJointPos << x, y, phi, joint_pos.at(2),
             joint_pos.at(3), joint_pos.at(4), joint_pos.at(5),
             joint_pos.at(6), joint_pos.at(7), joint_pos.at(8);
@@ -156,16 +156,16 @@ public:
 
         // Show the initial joint positions
         std::cout << "Initial joint positions: " << endl
-                  << "tx: " << q0(0) << endl
-                  << "ty: " << q0(1) << endl
-                  << "phi: " << q0(2) * 180 / M_PI << endl
-                  << "tz: " << q0(3) << endl
-                  << "q1: " << q0(4) * 180 / M_PI << endl
-                  << "q2: " << q0(5) * 180 / M_PI << endl
-                  << "q3: " << q0(6) * 180 / M_PI << endl
-                  << "q4: " << q0(7) * 180 / M_PI << endl
-                  << "q5: " << q0(8) * 180 / M_PI << endl
-                  << "q6: " << q0(9) * 180 / M_PI << endl
+                  << "tx: " << q0(0) << "\t"
+                  << "ty: " << q0(1) << "\t"
+                  << "phi: " << q0(2) * 180 / M_PI << "\t"
+                  << "tz: " << q0(3) << "\n"
+                  << "q1: " << q0(4) * 180 / M_PI << "\t"
+                  << "q2: " << q0(5) * 180 / M_PI << "\t"
+                  << "q3: " << q0(6) * 180 / M_PI << "\t"
+                  << "q4: " << q0(7) * 180 / M_PI << "\t"
+                  << "q5: " << q0(8) * 180 / M_PI << "\t"
+                  << "q6: " << q0(9) * 180 / M_PI << "\n"
                   << endl;
         robot.setJointPositions(q0);
         pose0 = Pose(robot.getEETransform());
@@ -183,18 +183,20 @@ public:
                   << endl;
         std::cout << "Trajectory time: " << tf << endl;
         
-        std::cout << "Confirm the trajectory to be executed (y/n): " << endl;
+        /*std::cout << "Are these parameters OK? (y/n): ";
         char confirm = getchar();
+        getchar(); // Get the CR character
         if (confirm != 'y' && confirm != 'Y')
         {
+            ROS_INFO("Parameters not confirmed");
             ROS_INFO("%s: Motion planning aborted", action_name.c_str());
             as.setAborted();
             return;
-        }
+        }*/
 
-        cout << "Motion planning started" << endl;
+        /*cout << "Motion planning started" << endl;
         as.setSucceeded(result);
-        return;
+        return;*/
 
         /*
             **********************************************************
@@ -335,12 +337,18 @@ public:
                 alphak = minAlpha;
             }
 
+            cout << "trajDuration: " << trajDuration << endl;
+            cout << "WMatrix(3): " << Wmatrix(3,3) << endl;
+            cout << "partSol(3): " << partSol(3) << endl;
+            cout << "homSol(3): " << homSol(3) << endl;
+
             // Compute the joint velocities
             eta.push_back(partSol + alphak * homSol);
             dq.push_back(S * eta.at(k));
 
             // Send velocity commands
             sendVelCommand(eta.at(k));
+            // sendVelCommand(VectorXd::Zero(9));
 
             // Update joint positions for next iteration
             if ((tf - trajDuration) > -1e-2)
@@ -356,6 +364,9 @@ public:
                 mutex.lock();
                 q.push_back(currJointPos);
                 mutex.unlock();
+
+                // Print current joint states
+                //cout << "currJointPos: " << currJointPos << endl;
 
                 prevTime = nowTime;
                 // Publish the feedback
