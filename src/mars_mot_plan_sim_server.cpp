@@ -2,6 +2,8 @@
 #include <geometry_msgs/Pose.h>
 #include <actionlib/server/simple_action_server.h>
 #include <mars_mot_plan/PoseTrajectoryAction.h>
+#include <sensor_msgs/JointState.h>
+#include <tf/transform_listener.h>
 
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/QR>
@@ -38,6 +40,7 @@ public:
 
         robot = MarsUR5();
         invTq = robot.getVelsNormMatrix();
+        //cout << "InvTq: " << endl << invTq << endl;
         Id = MatrixXd::Identity(9, 9);
         S = MatrixXd::Zero(10, 9);
         S.block<8, 8>(2, 1).setIdentity();
@@ -51,34 +54,6 @@ public:
 
     void executeCB(const mars_mot_plan::PoseTrajectoryGoalConstPtr &goal)
     {
-        ROS_INFO_STREAM("Goal received");
-
-        // Get the initial joint states
-        VectorXd q0 = VectorXd(10);
-        double tx = 0, ty = 0, phi = 0, tz = 0.2;
-        VectorXd qa(6);
-        qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
-        q0 << tx, ty, phi, tz, qa;
-        std::cout << "Initial joint angles: " << endl
-                  << "tx: " << q0(0) << endl
-                  << "ty: " << q0(1) << endl
-                  << "phi: " << q0(2) * 180 / M_PI << endl
-                  << "tz: " << q0(3) << endl
-                  << "q1: " << q0(4) * 180 / M_PI << endl
-                  << "q2: " << q0(5) * 180 / M_PI << endl
-                  << "q3: " << q0(6) * 180 / M_PI << endl
-                  << "q4: " << q0(7) * 180 / M_PI << endl
-                  << "q5: " << q0(8) * 180 / M_PI << endl
-                  << "q6: " << q0(9) * 180 / M_PI << endl
-                  << endl;
-        robot.setJointPositions(q0);
-        pose0 = Pose(robot.getEETransform());
-        std::cout << "T0:" << endl
-                  << pose0.matrixRep() << endl;
-        std::cout << "Pose0:" << endl
-                  << pose0 << endl
-                  << endl;
-
         // read desired time and pose from goal
         tf = goal->trajTime;
         if (tf < 0.1)
@@ -88,6 +63,57 @@ public:
             as.setAborted();
             return;
         }
+        ROS_INFO("%s: Goal received", action_name.c_str());
+
+        // Get the initial mobile platform position and orientation
+        VectorXd qa(6);
+        try
+        {
+            listener.waitForTransform("/map", "/base_footprint",
+                              ros::Time(0), ros::Duration(0.2));
+            listener.lookupTransform("/map", "/base_footprint",
+                               ros::Time(0), mob_plat_base_transform);
+        }
+        catch (tf::TransformException ex)
+        {
+            ROS_WARN("Transform from frame map to base_footprint not available yet");
+            ROS_ERROR("%s",ex.what());
+            return;
+        }
+        // Get the initial joint states
+        double tx, ty, phi, tz;
+        VectorXd q0 = VectorXd(10);
+        tx = mob_plat_base_transform.getOrigin().x();
+        ty = mob_plat_base_transform.getOrigin().y();
+        phi = tf::getYaw(mob_plat_base_transform.getRotation());
+
+        joint_state = *(ros::topic::waitForMessage<sensor_msgs::JointState>("/joint_states", nh_, ros::Duration(0.5)));
+        std::vector<double> joint_pos = joint_state.position;
+        tz = joint_pos.at(2);
+        qa << joint_pos.at(3), joint_pos.at(4), joint_pos.at(5),
+              joint_pos.at(6), joint_pos.at(7), joint_pos.at(8);
+        q0 << tx, ty, phi, tz, qa;
+        // Show the initial joint positions
+        std::cout << "Initial joint positions: " << endl
+                  << "tx: " << q0(0) << "\t"
+                  << "ty: " << q0(1) << "\t"
+                  << "phi: " << q0(2) * 180 / M_PI << "\t"
+                  << "tz: " << q0(3) << "\n"
+                  << "q1: " << q0(4) * 180 / M_PI << "\t"
+                  << "q2: " << q0(5) * 180 / M_PI << "\t"
+                  << "q3: " << q0(6) * 180 / M_PI << "\t"
+                  << "q4: " << q0(7) * 180 / M_PI << "\t"
+                  << "q5: " << q0(8) * 180 / M_PI << "\t"
+                  << "q6: " << q0(9) * 180 / M_PI << "\n"
+                  << endl;
+        robot.setJointPositions(q0);
+        pose0 = Pose(robot.getEETransform());
+        std::cout << "T0:" << endl
+                  << pose0.matrixRep() << endl;
+        std::cout << "Pose0:" << endl
+                  << pose0 << endl << endl;
+        std::cout << "Trajectory time: " << tf << endl;
+
         posef = Pose(goal->desPose);
         std::cout << "Tf:" << endl
                   << posef.matrixRep() << endl;
@@ -189,6 +215,7 @@ public:
             invJBarW = pinv(JBarW);
             partSol = invJBarW * (desiredTraj.getVel(trajDuration) + wError * poseError.at(k));
             partSol = Wmatrix * partSol;
+            //cout << "invJBarW: " << invJBarW << endl;
 
             // Compute the step size transition
             trans.push_back(stepSizeTrans(maxLinVelCoeff, maxLinVel, tf, trajDuration));
@@ -330,6 +357,13 @@ private:
     VectorXd MMdP, UR5dP, dP;
     double MMman, UR5man, alphak, maxAlpha, minAlpha;
     ros::Time startTime, nowTime, prevTime;
+
+    // Joint states
+    double L, R, x, y, phi, linVel, angVel;
+    sensor_msgs::JointState joint_state;
+    VectorXd currJointPos;
+    tf::TransformListener listener;
+    tf::StampedTransform mob_plat_base_transform;
 
     double stepSizeTrans(std::vector<double> coeff, double maxVel, double tf, double t)
     {

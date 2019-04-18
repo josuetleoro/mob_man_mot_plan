@@ -313,10 +313,15 @@ void MarsUR5::getSelfMotionLims(const VectorXd &dqp, const VectorXd &dqh, double
 MatrixXd MarsUR5::getVelsNormMatrix()
 {
     MatrixXd invTq = MatrixXd::Zero(9, 9);
+    double max = 0;
     for (int i = 0; i < 9; i++)
     {
-        //Tq = 1 / sqrt(dqlimits(i));
         invTq(i, i) = sqrt(dqlimits(i));
+        /*if (invTq(i,i) > max)
+        {
+            max = invTq(i, i);
+        }*/
     }
+    //invTq = invTq / max;
     return invTq;
 }
