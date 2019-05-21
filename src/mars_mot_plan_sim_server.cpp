@@ -34,6 +34,8 @@ public:
         KpPos = 10;
         KpOr = 20;
 
+        stepVarCoeff.resize(3);
+
         wError = MatrixXd::Zero(6, 6);
         wError.block<3, 3>(0, 0) = Matrix3d::Identity() * KpPos;
         wError.block<3, 3>(3, 3) = Matrix3d::Identity() * KpOr;
@@ -70,14 +72,14 @@ public:
         try
         {
             listener.waitForTransform("/map", "/base_footprint",
-                              ros::Time(0), ros::Duration(0.2));
+                                      ros::Time(0), ros::Duration(0.2));
             listener.lookupTransform("/map", "/base_footprint",
-                               ros::Time(0), mob_plat_base_transform);
+                                     ros::Time(0), mob_plat_base_transform);
         }
         catch (tf::TransformException ex)
         {
             ROS_WARN("Transform from frame map to base_footprint not available yet");
-            ROS_ERROR("%s",ex.what());
+            ROS_ERROR("%s", ex.what());
             return;
         }
         // Get the initial joint states
@@ -91,7 +93,7 @@ public:
         std::vector<double> joint_pos = joint_state.position;
         tz = joint_pos.at(2);
         qa << joint_pos.at(3), joint_pos.at(4), joint_pos.at(5),
-              joint_pos.at(6), joint_pos.at(7), joint_pos.at(8);
+            joint_pos.at(6), joint_pos.at(7), joint_pos.at(8);
         q0 << tx, ty, phi, tz, qa;
         // Show the initial joint positions
         std::cout << "Initial joint positions: " << endl
@@ -111,7 +113,8 @@ public:
         std::cout << "T0:" << endl
                   << pose0.matrixRep() << endl;
         std::cout << "Pose0:" << endl
-                  << pose0 << endl << endl;
+                  << pose0 << endl
+                  << endl;
         std::cout << "Trajectory time: " << tf << endl;
 
         posef = Pose(goal->desPose);
@@ -137,10 +140,7 @@ public:
             **********************************************************
         */
         trans.clear();
-        maxLinVelCoeff.clear();
-        char maxLinVelCoord;
-        double maxLinVel = desiredTraj.getMaxLinVel(maxLinVelCoord);
-        maxLinVelCoeff = desiredTraj.getPosCoeff(maxLinVelCoord);
+        calcTransVars(tf, 0.2);
 
         // Clear and initialize variables that are reused
         ts = 1.0 / freq; // Needed for simulation
@@ -218,7 +218,7 @@ public:
             //cout << "invJBarW: " << invJBarW << endl;
 
             // Compute the step size transition
-            trans.push_back(stepSizeTrans(maxLinVelCoeff, maxLinVel, tf, trajDuration));
+            trans.push_back(stepSizeTrans(trajDuration));
 
             // homogeneous solution
             homSol = trans.at(k) * (Id - invJBarW * JBarW) * Wmatrix * dP;
@@ -336,7 +336,10 @@ private:
     // Variables to be calculated before motion planning
     Pose pose0, posef;
     PoseIterTrajectory desiredTraj;
-    std::vector<double> maxLinVelCoeff;
+    // Step size trasition variables
+    std::vector<double> stepVarCoeff;
+    double stepTb1;
+    double stepTb2;
     std::vector<double> trans;
 
     std::vector<VectorXd> q, eta, dq; // Joint position and velocities
@@ -365,28 +368,31 @@ private:
     tf::TransformListener listener;
     tf::StampedTransform mob_plat_base_transform;
 
-    double stepSizeTrans(std::vector<double> coeff, double maxVel, double tf, double t)
+    void calcTransVars(double tf, double blendPerc)
     {
-        double deltaTime;
-        double tb = tf * (1 - 0.15);
+        stepTb1 = tf * blendPerc;
+        stepTb2 = tf * (1 - blendPerc);
+        stepVarCoeff.clear();
+        stepVarCoeff.resize(3);
+        stepVarCoeff.at(0) = 10.0 / pow(stepTb1, 3);
+        stepVarCoeff.at(1) = -15.0 / pow(stepTb1, 4);
+        stepVarCoeff.at(2) = 6.0 / pow(stepTb1, 5);
+    }
+    double stepSizeTrans(double t)
+    {
         double stepSize;
-        double T = tf - tb;
-        double a0 = 1, a1 = 0, a2 = 0, a3 = -10 / pow(T, 3), a4 = 15 / pow(T, 4), a5 = -6 / pow(T, 5);
-        if (t > (tf / 2))
+        if (t < stepTb1)
         {
-            if (t > tb)
-            {
-                deltaTime = t - tb;
-                stepSize = a0 + a1 * (deltaTime) + a2 * pow(deltaTime, 2) + a3 * pow(deltaTime, 3) + a4 * pow(deltaTime, 4) + a5 * pow(deltaTime, 5);
-            }
-            else
-            {
-                stepSize = 1.0;
-            }
+            stepSize = stepVarCoeff.at(0) * pow(t, 3) + stepVarCoeff.at(1) * pow(t, 4) + stepVarCoeff.at(2) * pow(t, 5);
         }
-        else
+        if (t >= stepTb1 && t <= stepTb2)
         {
-            stepSize = abs(TrajPlan::dqPol(coeff, t)) / maxVel;
+            stepSize = 1.0;
+        }
+        if (t > stepTb2)
+        {
+            double deltaTime = t - stepTb2;
+            stepSize = 1.0 - stepVarCoeff.at(0) * pow(deltaTime, 3) - stepVarCoeff.at(1) * pow(deltaTime, 4) - stepVarCoeff.at(2) * pow(deltaTime, 5);
         }
         return stepSize;
     }

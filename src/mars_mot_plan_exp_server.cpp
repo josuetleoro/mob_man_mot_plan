@@ -54,13 +54,15 @@ public:
         // Initialize mobile platform position and orientation
         L = 0.4225;
         R = 0.0762;
-        x = 0; y = 0; phi = 0;
+        x = 0;
+        y = 0;
+        phi = 0;
         jointStateCurrTime = ros::Time::now();
         jointStatePrevTime = jointStateCurrTime;
         currJointPos = VectorXd(10);
 
         //Publishers for command velocities
-        mob_plat_vel_pub = nh_.advertise<geometry_msgs::Twist>("/mob_plat/cmd_vel", 10);    
+        mob_plat_vel_pub = nh_.advertise<geometry_msgs::Twist>("/mob_plat/cmd_vel", 10);
         prism_vel_pub = nh_.advertise<std_msgs::Float32>("/prism_joint/cmd_vel", 10);
         ur_script_pub = nh_.advertise<std_msgs::String>("/ur_driver/URScript", 10);
         ur5_accel = 2.0, ur5_speedj_time = 0.5;
@@ -69,15 +71,15 @@ public:
         ROS_INFO_STREAM("Mars motion planning action server started");
         ros::SubscribeOptions ops =
             ros::SubscribeOptions::create<sensor_msgs::JointState>(
-                "/joint_states",     // topic name
-                10,                   // queue length
+                "/joint_states", // topic name
+                10,              // queue length
                 bind(&MarsPoseTrajActionSim::jointStateCB, this, _1),
-                ros::VoidPtr(),      // tracked object, we don't need one thus NULL
-                &joint_states_queue           // pointer to callback queue object
+                ros::VoidPtr(),     // tracked object, we don't need one thus NULL
+                &joint_states_queue // pointer to callback queue object
             );
         // Subscriber for joint states
         joint_state_sub = nh_.subscribe(ops);
-         // spawn async spinner with 1 thread, running on the joint_states_queue
+        // spawn async spinner with 1 thread, running on the joint_states_queue
         async_spinner = new ros::AsyncSpinner(1, &joint_states_queue);
         // start the spinner
         async_spinner->start();
@@ -133,14 +135,14 @@ public:
         try
         {
             listener.waitForTransform("/map", "/base_footprint",
-                              ros::Time(0), ros::Duration(0.2));
+                                      ros::Time(0), ros::Duration(0.2));
             listener.lookupTransform("/map", "/base_footprint",
-                               ros::Time(0), mob_plat_base_transform);
+                                     ros::Time(0), mob_plat_base_transform);
         }
         catch (tf::TransformException ex)
         {
             ROS_WARN("Transform from frame map to base_footprint not available yet");
-            ROS_ERROR("%s",ex.what());
+            ROS_ERROR("%s", ex.what());
             return;
         }
         // Set odometry values and copy intial joint positions
@@ -148,11 +150,11 @@ public:
         mutex.lock();
         x = mob_plat_base_transform.getOrigin().x();
         y = mob_plat_base_transform.getOrigin().y();
-        phi = tf::getYaw(mob_plat_base_transform.getRotation()); 
+        phi = tf::getYaw(mob_plat_base_transform.getRotation());
         q0 << x, y, phi, currJointPos(3),
             currJointPos(4), currJointPos(5), currJointPos(6),
             currJointPos(7), currJointPos(8), currJointPos(9);
-        mutex.unlock();        
+        mutex.unlock();
 
         // Show the initial joint positions
         std::cout << "Initial joint positions: " << endl
@@ -182,7 +184,7 @@ public:
                   << posef << endl
                   << endl;
         std::cout << "Trajectory time: " << tf << endl;
-        
+
         /*std::cout << "Are these parameters OK? (y/n): ";
         char confirm = getchar();
         getchar(); // Get the CR character
@@ -214,10 +216,7 @@ public:
             **********************************************************
         */
         trans.clear();
-        maxLinVelCoeff.clear();
-        char maxLinVelCoord;
-        double maxLinVel = desiredTraj.getMaxLinVel(maxLinVelCoord);
-        maxLinVelCoeff = desiredTraj.getPosCoeff(maxLinVelCoord);
+        calcTransVars(tf, 0.2);
 
         // Clear and initialize variables that are reused
         time.clear();
@@ -248,7 +247,7 @@ public:
         nowTime = startTime;
         prevTime = nowTime;
         // Write the starting timestamp
-        stamps_fs  << nowTime.sec << "," << nowTime.nsec << "\n";
+        stamps_fs << nowTime.sec << "," << nowTime.nsec << "\n";
         ros::Rate rate(freq);
         // Copy the initial values of the joint positions
         q.push_back(q0);
@@ -260,7 +259,7 @@ public:
             {
                 // Stop all the joints
                 sendVelCommand(VectorXd::Zero(9));
-                ROS_WARN("%s: Preempted", action_name.c_str());                
+                ROS_WARN("%s: Preempted", action_name.c_str());
                 // set the action state to preempted
                 as.setPreempted();
                 success = false;
@@ -307,7 +306,7 @@ public:
             partSol = Wmatrix * partSol;
 
             // Compute the step size transition
-            trans.push_back(stepSizeTrans(maxLinVelCoeff, maxLinVel, tf, trajDuration));
+            trans.push_back(stepSizeTrans(trajDuration));
 
             // homogeneous solution
             homSol = trans.at(k) * (Id - invJBarW * JBarW) * Wmatrix * dP;
@@ -338,7 +337,7 @@ public:
             }
 
             cout << "trajDuration: " << trajDuration << endl;
-            cout << "WMatrix(3): " << Wmatrix(3,3) << endl;
+            cout << "WMatrix(3): " << Wmatrix(3, 3) << endl;
             cout << "partSol(3): " << partSol(3) << endl;
             cout << "homSol(3): " << homSol(3) << endl;
 
@@ -356,7 +355,7 @@ public:
                 rate.sleep();
                 nowTime = ros::Time::now();
                 trajDuration = (nowTime - startTime).toSec();
-                
+
                 //ts = (nowTime - prevTime).toSec();
                 //q.push_back(q.at(k) + dq.at(k) * ts);
 
@@ -380,7 +379,7 @@ public:
         sendVelCommand(VectorXd::Zero(9));
         // Write final time stamp
         nowTime = ros::Time::now();
-        stamps_fs  << nowTime.sec << "," << nowTime.nsec << "\n";
+        stamps_fs << nowTime.sec << "," << nowTime.nsec << "\n";
         stamps_fs.close();
 
         trajDuration = trajDuration - 1 / freq;
@@ -452,7 +451,10 @@ private:
     // Variables to be calculated before motion planning
     Pose pose0, posef;
     PoseIterTrajectory desiredTraj;
-    std::vector<double> maxLinVelCoeff;
+    // Step size trasition variables
+    std::vector<double> stepVarCoeff;
+    double stepTb1;
+    double stepTb2;
     std::vector<double> trans;
 
     std::vector<VectorXd> q, eta, dq; // Joint position and velocities
@@ -494,29 +496,32 @@ private:
     std_msgs::Float32 prism_speed_msg;
     std_msgs::String ur5_speed_msg;
     double ur5_accel, ur5_speedj_time;
-   
-    double stepSizeTrans(std::vector<double> coeff, double maxVel, double tf, double t)
+
+    void calcTransVars(double tf, double blendPerc)
     {
-        double deltaTime;
-        double tb = tf * (1 - 0.15);
+        stepTb1 = tf * blendPerc;
+        stepTb2 = tf * (1 - blendPerc);
+        stepVarCoeff.clear();
+        stepVarCoeff.resize(3);
+        stepVarCoeff.at(0) = 10.0 / pow(stepTb1, 3);
+        stepVarCoeff.at(1) = -15.0 / pow(stepTb1, 4);
+        stepVarCoeff.at(2) = 6.0 / pow(stepTb1, 5);
+    }
+    double stepSizeTrans(double t)
+    {
         double stepSize;
-        double T = tf - tb;
-        double a0 = 1, a1 = 0, a2 = 0, a3 = -10 / pow(T, 3), a4 = 15 / pow(T, 4), a5 = -6 / pow(T, 5);
-        if (t > (tf / 2))
+        if (t < stepTb1)
         {
-            if (t > tb)
-            {
-                deltaTime = t - tb;
-                stepSize = a0 + a1 * (deltaTime) + a2 * pow(deltaTime, 2) + a3 * pow(deltaTime, 3) + a4 * pow(deltaTime, 4) + a5 * pow(deltaTime, 5);
-            }
-            else
-            {
-                stepSize = 1.0;
-            }
+            stepSize = stepVarCoeff.at(0) * pow(t, 3) + stepVarCoeff.at(1) * pow(t, 4) + stepVarCoeff.at(2) * pow(t, 5);
         }
-        else
+        if (t >= stepTb1 && t <= stepTb2)
         {
-            stepSize = abs(TrajPlan::dqPol(coeff, t)) / maxVel;
+            stepSize = 1.0;
+        }
+        if (t > stepTb2)
+        {
+            double deltaTime = t - stepTb2;
+            stepSize = 1.0 - stepVarCoeff.at(0) * pow(deltaTime, 3) - stepVarCoeff.at(1) * pow(deltaTime, 4) - stepVarCoeff.at(2) * pow(deltaTime, 5);
         }
         return stepSize;
     }
@@ -527,26 +532,26 @@ private:
 
         //Mobile platform velocity command
         mob_plat_speed_msg.linear.x = vel_cmd(0); //linear velocity
-        mob_plat_speed_msg.angular.z = vel_cmd(1);; //angular velocity
+        mob_plat_speed_msg.angular.z = vel_cmd(1);
+        ; //angular velocity
 
         //Prismatic joint velocity command
         prism_speed_msg.data = vel_cmd(2);
 
         //UR5 speedj command
-		//std::string speedj = "speedj([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]," + std::to_string(ur5_accel) + "," + std::to_string(ur5_speedj_time) + ")";
-        std::string speedj = "speedj([" + std::to_string(vel_cmd(3)) + 
-                                    "," + std::to_string(vel_cmd(4)) + 
-                                    "," + std::to_string(vel_cmd(5)) + 
-                                    "," + std::to_string(vel_cmd(6)) + 
-                                    "," + std::to_string(vel_cmd(7)) + 
-                                    "," + std::to_string(vel_cmd(8)) + "],"
-                                    + std::to_string(ur5_accel) + "," + std::to_string(ur5_speedj_time) + ")";
-		ur5_speed_msg.data = speedj;
+        //std::string speedj = "speedj([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]," + std::to_string(ur5_accel) + "," + std::to_string(ur5_speedj_time) + ")";
+        std::string speedj = "speedj([" + std::to_string(vel_cmd(3)) +
+                             "," + std::to_string(vel_cmd(4)) +
+                             "," + std::to_string(vel_cmd(5)) +
+                             "," + std::to_string(vel_cmd(6)) +
+                             "," + std::to_string(vel_cmd(7)) +
+                             "," + std::to_string(vel_cmd(8)) + "]," + std::to_string(ur5_accel) + "," + std::to_string(ur5_speedj_time) + ")";
+        ur5_speed_msg.data = speedj;
 
         //Publish the velocities
         mob_plat_vel_pub.publish(mob_plat_speed_msg);
         prism_vel_pub.publish(prism_speed_msg);
-		ur_script_pub.publish(ur5_speed_msg);
+        ur_script_pub.publish(ur5_speed_msg);
     }
 
     void recordData()

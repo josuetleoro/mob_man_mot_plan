@@ -7,7 +7,7 @@
 
 #include <ros/ros.h>
 #include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/QR> 
+#include <eigen3/Eigen/QR>
 #define _USE_MATH_DEFINES // for the PI constant
 #include <math.h>
 
@@ -20,7 +20,7 @@ using namespace std;
 using namespace Eigen;
 namespace plt = matplotlibcpp;
 
-double stepSizeTrans(std::vector<double> coeff, double maxVel, double tf, double t);
+double stepSizeTrans(double t, double tf, double ts, double blendPerc);
 template <class MatT>
 Eigen::Matrix<typename MatT::Scalar, MatT::ColsAtCompileTime, MatT::RowsAtCompileTime>
 pinv(const MatT &mat, typename MatT::Scalar tolerance = typename MatT::Scalar{1e-4}); // choose appropriately
@@ -46,51 +46,55 @@ int main(int argc, char **argv)
 
     // Algorithm parameters
     double t0 = 0, freq = 50;
-    double alpha = 8;
-    double KpPos = 10, KpOr = 20;    
+    double alpha = 4;
+    double KpPos = 10, KpOr = 20;
 
     // Get the initial joint states and desired final pose
     VectorXd q0;
     Pose posef;
     double tf;
-    testPointsMaxLinVel(testN, q0, posef, tf);    
+    testPointsMaxLinVel(testN, q0, posef, tf);
     std::cout << "Initial joint angles: " << endl
-         << "tx: " << q0(0) << endl
-         << "ty: " << q0(1) << endl
-         << "phi: " << q0(2) * 180 / M_PI << endl
-         << "tz: " << q0(3) << endl
-         << "q1: " << q0(4) * 180 / M_PI << endl
-         << "q2: " << q0(5) * 180 / M_PI << endl
-         << "q3: " << q0(6) * 180 / M_PI << endl
-         << "q4: " << q0(7) * 180 / M_PI << endl
-         << "q5: " << q0(8) * 180 / M_PI << endl
-         << "q6: " << q0(9) * 180 / M_PI << endl << endl;
-    robot.setJointPositions(q0);    
+              << "tx: " << q0(0) << endl
+              << "ty: " << q0(1) << endl
+              << "phi: " << q0(2) * 180 / M_PI << endl
+              << "tz: " << q0(3) << endl
+              << "q1: " << q0(4) * 180 / M_PI << endl
+              << "q2: " << q0(5) * 180 / M_PI << endl
+              << "q3: " << q0(6) * 180 / M_PI << endl
+              << "q4: " << q0(7) * 180 / M_PI << endl
+              << "q5: " << q0(8) * 180 / M_PI << endl
+              << "q6: " << q0(9) * 180 / M_PI << endl
+              << endl;
+    robot.setJointPositions(q0);
     Pose pose0(robot.getEETransform());
-    std::cout << "T0:" << endl << pose0.matrixRep() << endl;
-    std::cout << "Pose0:" << endl << pose0 << endl << endl;
-    std::cout << "Tf:" << endl << posef.matrixRep() << endl;
-    std::cout << "Posef:" << endl << posef << endl << endl;
-    
+    std::cout << "T0:" << endl
+              << pose0.matrixRep() << endl;
+    std::cout << "Pose0:" << endl
+              << pose0 << endl
+              << endl;
+    std::cout << "Tf:" << endl
+              << posef.matrixRep() << endl;
+    std::cout << "Posef:" << endl
+              << posef << endl
+              << endl;
+
     /*
         **********************************************************
         **************** Pose trajectory planning ****************
         **********************************************************
     */
     PoseIterTrajectory desiredTraj(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                              posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                              t0, tf);
-    
+                                   posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+                                   t0, tf);
+
     /*
         **********************************************************
         **************** Step size variation law  ****************
         **********************************************************
     */
-    char maxLinVelCoord;
-    double maxLinVel = desiredTraj.getMaxLinVel(maxLinVelCoord);
-    std::vector<double> maxLinVelCoeff = desiredTraj.getPosCoeff(maxLinVelCoord);
     std::vector<double> trans;
-    
+
     /*
         **********************************************************
         ********************* Motion planning  *******************
@@ -99,19 +103,19 @@ int main(int argc, char **argv)
 
     // Initialize all the variables
     std::vector<double> timeObt;
-    std::vector<VectorXd> q;    // 10 elements
-    std::vector<VectorXd> eta;  // 9 elements
-    std::vector<VectorXd> dq;   // 10 elements
-    std::vector<Pose> xi;   
+    std::vector<VectorXd> q;   // 10 elements
+    std::vector<VectorXd> eta; // 9 elements
+    std::vector<VectorXd> dq;  // 10 elements
+    std::vector<Pose> xi;
     std::vector<VectorXd> poseError; // 6 elements
     std::vector<double> wMeasure;
-    std::vector<double> MMmanip; 
+    std::vector<double> MMmanip;
     std::vector<double> UR5manip;
 
     // Error weighting matrix
     MatrixXd wError = MatrixXd::Zero(6, 6);
-    wError.block<3,3>(0,0) = Matrix3d::Identity()*KpPos;
-    wError.block<3,3>(3,3) = Matrix3d::Identity()*KpOr;
+    wError.block<3, 3>(0, 0) = Matrix3d::Identity() * KpPos;
+    wError.block<3, 3>(3, 3) = Matrix3d::Identity() * KpOr;
     //cout << "wError: " << endl << wError << endl;
 
     // Joint limits and collision avoidance variables
@@ -129,9 +133,9 @@ int main(int argc, char **argv)
     MatrixXd Id = MatrixXd::Identity(9, 9);
 
     // Create non-holonomic constrains matrix
-    MatrixXd S = MatrixXd::Zero(10,9);
+    MatrixXd S = MatrixXd::Zero(10, 9);
     S.block<8, 8>(2, 1).setIdentity();
-    
+
     // Copy the initial values of the joint positions
     q.push_back(q0);
 
@@ -140,7 +144,7 @@ int main(int argc, char **argv)
     double MMman, UR5man, alphak, maxAlpha, minAlpha;
     high_resolution_clock::time_point start, end;
     start = high_resolution_clock::now();
-    
+
     int k = 0;
     double trajDuration = 0.0, ts;
     ros::Time startTime = ros::Time::now();
@@ -155,19 +159,21 @@ int main(int argc, char **argv)
         timeObt.push_back(trajDuration);
         // Set the current joint positions to the robot
         robot.setJointPositions(q.at(k));
-        
+
         // Get the kth pose
         xi.push_back(Pose::matrixToPose(robot.getEETransform()));
 
         // Replace the elements of the nonholonomic constraints matrix
-        S(0, 0) = cos(q.at(k)(2));  S(1, 0) = sin(q.at(k)(2));
+        S(0, 0) = cos(q.at(k)(2));
+        S(1, 0) = sin(q.at(k)(2));
 
         // Compute the manipulability gradients
         robot.getManipGrads(MMdP, MMman, UR5dP, UR5man);
-        dP =  UR5man*MMdP + MMman*UR5dP;
-        dP =  S.transpose()*dP;
+        dP = UR5man * MMdP + MMman * UR5dP;
+        dP = S.transpose() * dP;
         wMeasure.push_back(MMman * UR5man);
-        MMmanip.push_back(MMman); UR5manip.push_back(UR5man);
+        MMmanip.push_back(MMman);
+        UR5manip.push_back(UR5man);
 
         // Compute the weighting matrices
         robot.getJLimWeight(Wjlim);
@@ -177,8 +183,8 @@ int main(int argc, char **argv)
         wristDistVector.push_back(wristDist);
         wristHeightVector.push_back(wristPos(2));
         Wmatrix = Wjlim * WColElbow * WColWrist * invTq;
-        
-        // Compute the position and orientation error        
+
+        // Compute the position and orientation error
         poseError.push_back(Pose::pose_diff(desiredTraj.getPose(trajDuration), xi.at(k)));
 
         // Compute the particular and homogeneous solutions
@@ -186,15 +192,15 @@ int main(int argc, char **argv)
         JBar = robot.getJacobianBar();
         JBarW = JBar * Wmatrix;
         invJBarW = pinv(JBarW);
-        partSol = invJBarW*(desiredTraj.getVel(trajDuration) + wError*poseError.at(k));
-        partSol = Wmatrix*partSol;
+        partSol = invJBarW * (desiredTraj.getVel(trajDuration) + wError * poseError.at(k));
+        partSol = Wmatrix * partSol;
 
         // Compute the step size transition
-        trans.push_back(stepSizeTrans(maxLinVelCoeff, maxLinVel, tf, trajDuration));
+        trans.push_back(stepSizeTrans(trajDuration, tf, ts, 0.2));
 
         // homogeneous solution
-        homSol = trans.at(k) * (Id - invJBarW*JBarW) * Wmatrix * dP;
-        homSol = Wmatrix*homSol;
+        homSol = trans.at(k) * (Id - invJBarW * JBarW) * Wmatrix * dP;
+        homSol = Wmatrix * homSol;
 
         // Compute the maximum and minimum step size for the homogeneous solution
         robot.getSelfMotionLims(partSol, homSol, maxAlpha, minAlpha);
@@ -228,10 +234,10 @@ int main(int argc, char **argv)
             trajDuration = (nowTime - startTime).toSec();
             ts = (nowTime - prevTime).toSec();
 
-            q.push_back(q.at(k) + dq.at(k)*ts);
-            
+            q.push_back(q.at(k) + dq.at(k) * ts);
+
             prevTime = nowTime;
-        }        
+        }
         k++;
     }
     end = high_resolution_clock::now();
@@ -242,14 +248,14 @@ int main(int argc, char **argv)
     cout << "tf: " << tf << endl;
     cout << "trajDuration: " << trajDuration << endl;
     cout << "Time diff: " << finalTimeDiff << endl;
-    
+
     if (abs(finalTimeDiff) < 1e-3)
     {
         // Compute the execution time in us
         double time_ns = (double)(duration_cast<nanoseconds>(end - start).count());
         std::cout << "Motion planning completed. Number of iterations: " << k << endl;
-        std::cout << "Motion planning execution time: " << time_ns/1000000 << "ms" << endl;
-        std::cout << "Motion planning mean time: " << time_ns/(1000*k) << "us" << endl;
+        std::cout << "Motion planning execution time: " << time_ns / 1000000 << "ms" << endl;
+        std::cout << "Motion planning mean time: " << time_ns / (1000 * k) << "us" << endl;
     }
     else
     {
@@ -257,12 +263,18 @@ int main(int argc, char **argv)
     }
 
     // Show final position and orientation errors
-    std::cout << "Desired final pos: " << endl << desiredTraj.getPose(trajDuration) << endl;
-    std::cout << "Obtained final pos: " << endl << xi.at(k) << endl;
-    std::cout << "Final pos error: " << endl << poseError.at(k).head(3).transpose() << endl;
-    std::cout << "Pos error norm: " << endl << poseError.at(k).head(3).norm() << endl;
-    std::cout << "Final orientation error: " << endl << poseError.at(k).tail(3).transpose() << endl;
-    std::cout << "Orientation error norm: " << endl << poseError.at(k).tail(3).norm() << endl;
+    std::cout << "Desired final pos: " << endl
+              << desiredTraj.getPose(trajDuration) << endl;
+    std::cout << "Obtained final pos: " << endl
+              << xi.at(k) << endl;
+    std::cout << "Final pos error: " << endl
+              << poseError.at(k).head(3).transpose() << endl;
+    std::cout << "Pos error norm: " << endl
+              << poseError.at(k).head(3).norm() << endl;
+    std::cout << "Final orientation error: " << endl
+              << poseError.at(k).tail(3).transpose() << endl;
+    std::cout << "Orientation error norm: " << endl
+              << poseError.at(k).tail(3).norm() << endl;
 
     /*
         **********************************************************
@@ -274,7 +286,7 @@ int main(int argc, char **argv)
     std::vector<double> mobPlat_x, mobPlat_y, z_pj, qa1, qa2, qa3, qa4, qa5, qa6;
     std::vector<double> mobPlat_v, mobPlat_w, dz_pj, dqa1, dqa2, dqa3, dqa4, dqa5, dqa6;
     for (int i = 0; i < NObt; i++)
-    {   
+    {
         // Position and orientation error data
         epos_x.push_back(poseError.at(i)(0));
         epos_y.push_back(poseError.at(i)(1));
@@ -312,35 +324,35 @@ int main(int argc, char **argv)
     // Figure (1)
     // Manipulability plots
     plt::figure_size(1600, 900);
-    plt::subplot(2,2,1);
+    plt::subplot(2, 2, 1);
     plt::named_plot("w_MM", timeObt, wMeasure);
     plt::named_plot("w_{p+a}", timeObt, MMmanip);
     plt::named_plot("w_{a}", timeObt, UR5manip);
     plt::grid(true);
-    plt::xlabel("time");    
+    plt::xlabel("time");
     plt::legend();
     // Mob plat trajectory
-    plt::subplot(2,2,2);
+    plt::subplot(2, 2, 2);
     std::vector<double> mobPlatStart_x(2, mobPlat_x.at(0)),
-                        mobPlatEnd_x(2, mobPlat_x.at(NObt-1)), 
-                        mobPlatStart_y(2, mobPlat_y.at(0)), 
-                        mobPlatEnd_y(2, mobPlat_y.at(NObt-1));        
+        mobPlatEnd_x(2, mobPlat_x.at(NObt - 1)),
+        mobPlatStart_y(2, mobPlat_y.at(0)),
+        mobPlatEnd_y(2, mobPlat_y.at(NObt - 1));
     plt::named_plot("Traj", mobPlat_x, mobPlat_y);
-    plt::named_plot("Start Pos", mobPlatStart_x, mobPlatStart_y,"o");
-    plt::named_plot("Final Pos", mobPlatEnd_x, mobPlatEnd_y,"s");
+    plt::named_plot("Start Pos", mobPlatStart_x, mobPlatStart_y, "o");
+    plt::named_plot("Final Pos", mobPlatEnd_x, mobPlatEnd_y, "s");
     plt::grid(true);
     plt::ylabel("y(m)");
     plt::xlabel("x(m)");
     plt::legend();
     // Position and Orientation errors
-    plt::subplot(2,2,3);
+    plt::subplot(2, 2, 3);
     plt::named_plot("e_{Px}", timeObt, epos_x);
     plt::named_plot("e_{Py}", timeObt, epos_y);
     plt::named_plot("e_{Pz}", timeObt, epos_z);
     plt::grid(true);
     plt::xlabel("time");
     plt::legend();
-    plt::subplot(2,2,4);
+    plt::subplot(2, 2, 4);
     plt::named_plot("e_{Ox}", timeObt, eor_x);
     plt::named_plot("e_{Oy}", timeObt, eor_y);
     plt::named_plot("e_{Oz}", timeObt, eor_z);
@@ -354,56 +366,56 @@ int main(int argc, char **argv)
     plt::subplot(2, 3, 1);
     plt::named_plot("v(m/s)", timeObt, mobPlat_v, "b");
     plt::named_plot("w(rad/s)", timeObt, mobPlat_w, "r");
-    plt::named_plot("v-", timeObt, std::vector<double>(NObt, -1*dqlimits(0)), "--b");
+    plt::named_plot("v-", timeObt, std::vector<double>(NObt, -1 * dqlimits(0)), "--b");
     plt::named_plot("v+", timeObt, std::vector<double>(NObt, dqlimits(0)), "-.b");
-    plt::named_plot("w-", timeObt, std::vector<double>(NObt, -1*dqlimits(1)), "--r");
-    plt::named_plot("w+", timeObt, std::vector<double>(NObt, dqlimits(1)), "-.r");    
+    plt::named_plot("w-", timeObt, std::vector<double>(NObt, -1 * dqlimits(1)), "--r");
+    plt::named_plot("w+", timeObt, std::vector<double>(NObt, dqlimits(1)), "-.r");
     plt::grid(true);
-    plt::xlabel("time");    
+    plt::xlabel("time");
     plt::legend();
     // Prismatic joint
     plt::subplot(2, 3, 2);
     plt::named_plot("z(m)", timeObt, z_pj, "y");
     plt::named_plot("dz(m/s)", timeObt, dz_pj, "c");
     plt::named_plot("z-", timeObt, std::vector<double>(NObt, qlimits(2, 0)), "--y");
-    plt::named_plot("z+", timeObt, std::vector<double>(NObt, qlimits(2, 1)), "-.y");    
-    plt::named_plot("dz-", timeObt, std::vector<double>(NObt, -1*dqlimits(2)), "--c");
+    plt::named_plot("z+", timeObt, std::vector<double>(NObt, qlimits(2, 1)), "-.y");
+    plt::named_plot("dz-", timeObt, std::vector<double>(NObt, -1 * dqlimits(2)), "--c");
     plt::named_plot("dz+", timeObt, std::vector<double>(NObt, dqlimits(2)), "-.c");
     plt::grid(true);
-    plt::xlabel("time");    
+    plt::xlabel("time");
     plt::legend();
     // UR5 Joints 1 and 2
     plt::subplot(2, 3, 3);
     plt::named_plot("qa1", timeObt, qa1, "b");
     plt::named_plot("qa2", timeObt, qa2, "r");
     plt::named_plot("qa1-", timeObt, std::vector<double>(NObt, qlimits(3, 0)), "--b");
-    plt::named_plot("qa1+", timeObt, std::vector<double>(NObt, qlimits(3, 1)), "-.b");    
+    plt::named_plot("qa1+", timeObt, std::vector<double>(NObt, qlimits(3, 1)), "-.b");
     plt::named_plot("qa2-", timeObt, std::vector<double>(NObt, qlimits(4, 0)), "--r");
     plt::named_plot("qa2+", timeObt, std::vector<double>(NObt, qlimits(4, 1)), "-.r");
     plt::grid(true);
-    plt::xlabel("time");    
+    plt::xlabel("time");
     plt::legend();
     // UR5 Joint 3 and 4
     plt::subplot(2, 3, 4);
     plt::named_plot("qa3", timeObt, qa3, "y");
     plt::named_plot("qa4", timeObt, qa4, "m");
     plt::named_plot("qa3-", timeObt, std::vector<double>(NObt, qlimits(5, 0)), "--y");
-    plt::named_plot("qa3+", timeObt, std::vector<double>(NObt, qlimits(5, 1)), "-.y");    
+    plt::named_plot("qa3+", timeObt, std::vector<double>(NObt, qlimits(5, 1)), "-.y");
     plt::named_plot("qa4-", timeObt, std::vector<double>(NObt, qlimits(6, 0)), "--m");
     plt::named_plot("qa4+", timeObt, std::vector<double>(NObt, qlimits(6, 1)), "-.m");
     plt::grid(true);
-    plt::xlabel("time");    
+    plt::xlabel("time");
     plt::legend();
     // UR5 Joint 5 and 6
     plt::subplot(2, 3, 5);
     plt::named_plot("qa5", timeObt, qa5, "g");
     plt::named_plot("qa6", timeObt, qa6, "c");
     plt::named_plot("qa5-", timeObt, std::vector<double>(NObt, qlimits(7, 0)), "--g");
-    plt::named_plot("qa5+", timeObt, std::vector<double>(NObt, qlimits(7, 1)), "-.g");    
+    plt::named_plot("qa5+", timeObt, std::vector<double>(NObt, qlimits(7, 1)), "-.g");
     plt::named_plot("qa6-", timeObt, std::vector<double>(NObt, qlimits(8, 0)), "--c");
     plt::named_plot("qa6+", timeObt, std::vector<double>(NObt, qlimits(8, 1)), "-.c");
     plt::grid(true);
-    plt::xlabel("time");    
+    plt::xlabel("time");
     plt::legend();
     // UR5 Joint velocities
     plt::subplot(2, 3, 6);
@@ -414,35 +426,32 @@ int main(int argc, char **argv)
     plt::named_plot("dqa5", timeObt, dqa5, "g");
     plt::named_plot("dqa6", timeObt, dqa6, "c");
     plt::grid(true);
-    plt::xlabel("time");    
+    plt::xlabel("time");
     plt::legend();
     plt::show();
 
     return 0;
 }
 
-double stepSizeTrans(std::vector<double> coeff, double maxVel, double tf, double t)
+double stepSizeTrans(double t, double tf, double ts, double blendPerc)
 {
+    double tb1 = tf * blendPerc;
+    double tb2 = tf * (1 - blendPerc);
+    double a1 = 10.0 / pow(tb1, 3), a2 = -15.0 / pow(tb1, 4), a3 = 6.0 / pow(tb1, 5);
     double deltaTime;
-    double tb = tf * (1 - 0.15);
     double stepSize;
-    double T = tf - tb;
-    double a0 = 1, a1 = 0, a2 = 0, a3 = -10 / pow(T, 3), a4 = 15 / pow(T, 4), a5 = -6 / pow(T, 5);
-    if (t > (tf / 2))
+    if (t < tb1)
     {
-        if (t > tb)
-        {
-            deltaTime = t - tb;
-            stepSize = a0 + a1 * (deltaTime) + a2 * pow(deltaTime, 2) + a3 * pow(deltaTime, 3) + a4 * pow(deltaTime, 4) + a5 * pow(deltaTime, 5);
-        }
-        else
-        {
-            stepSize = 1.0;
-        }
+        stepSize = a1 * pow(t, 3) + a2 * pow(t, 4) + a3 * pow(t, 5);
     }
-    else
+    if (t >= tb1 && t <= tb2)
     {
-        stepSize = abs(TrajPlan::dqPol(coeff, t)) / maxVel;
+        stepSize = 1.0;
+    }
+    if (t > tb2)
+    {
+        deltaTime = t - tb2;
+        stepSize = 1.0 - a1 * pow(deltaTime, 3) - a2 * pow(deltaTime, 4) - a3 * pow(deltaTime, 5);
     }
     return stepSize;
 }
@@ -456,7 +465,8 @@ pinv(const MatT &mat, typename MatT::Scalar tolerance) // choose appropriately
     const auto &singularValues = svd.singularValues();
     Eigen::Matrix<Scalar, MatT::ColsAtCompileTime, MatT::RowsAtCompileTime> singularValuesInv(mat.cols(), mat.rows());
     singularValuesInv.setZero();
-    for (unsigned int i = 0; i < singularValues.size(); ++i) {
+    for (unsigned int i = 0; i < singularValues.size(); ++i)
+    {
         if (singularValues(i) > tolerance)
         {
             singularValuesInv(i, i) = Scalar{1} / singularValues(i);
@@ -471,122 +481,122 @@ pinv(const MatT &mat, typename MatT::Scalar tolerance) // choose appropriately
 
 void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
 {
-    double tx, ty, phi, tz;         // Mobile platform initial states
-    VectorXd qa(6);                 // Robot arm initial joint values
-    Vector3d pos_des;               // Desired Position
-    AngleAxisd eigen_angaxis_des;   // Desired Orientation angle axis
-    Quaterniond eigen_quatf;        // Desired Orientation quaternion
+    double tx, ty, phi, tz;       // Mobile platform initial states
+    VectorXd qa(6);               // Robot arm initial joint values
+    Vector3d pos_des;             // Desired Position
+    AngleAxisd eigen_angaxis_des; // Desired Orientation angle axis
+    Quaterniond eigen_quatf;      // Desired Orientation quaternion
     switch (testN)
     {
-        case 1:
-            tx = 0, ty = 0, phi = 0, tz=0.2;  
-            qa << 0, -0.4, 1.06, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 3.0, -0.1091, 0.18;
-            eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
-            tf = 7;
-            break;
-        case 2:
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -0.4, 1.06, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 3.0, 0.0, 0.32;
-            eigen_angaxis_des = AngleAxisd(M_PI/2.0, Vector3d(0, 1, 0).normalized());
-            tf = 9;
-            break;
-        case 3:
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -1*M_PI/2, 3*M_PI/4, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 2.0, 3.0, 1.3;
-            eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
-            tf = 10;
-            break;
-        case 4:
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -1*M_PI/2, 3*M_PI/4, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 1.0, -0.8, 0.4;
-            eigen_angaxis_des = AngleAxisd(120*M_PI/180, Vector3d(1, 1, -1).normalized());
-            tf = 18;
-            break;
-        case 5:
-            tx = 0, ty = 0.1, phi = 0, tz=0.2;
-            qa << 0, -1*M_PI/2, 3*M_PI/4, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << -1.2, -1.2, 0.15;
-            eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(1, 0, 0).normalized());
-            tf = 10;
-            break;
-        case 6: //Example case that cannot be achieved with the given time
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -0.4, 1.06, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << -2.2, 2.2, 1.5;
-            eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, -1, -1).normalized());
-            tf = 10;
-            break;
-        case 7:
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -0.4, 1.06, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 1, 1, 0.6;
-            eigen_angaxis_des = AngleAxisd(M_PI/2, Vector3d(0, 1, 0).normalized());
-            tf = 6;
-            break;
-        case 8:
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -1*M_PI/2, 3*M_PI/4, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 1.2, 1.2, 0.7;
-            eigen_angaxis_des = AngleAxisd(120*M_PI/180, Vector3d(-1, -1, 1).normalized());
-            tf = 8;
-            break;
-        case 9:
-            tx = 0, ty = 0, phi = 0, tz=0.05;
-            qa << 0, -0.4, 1.06, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 0.5, -3, 0.15;
-            eigen_angaxis_des = AngleAxisd(120*M_PI/180, Vector3d(-1, 1, 1).normalized());
-            tf = 18;
-            break;
-        case 10:
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -0.4, 1.06, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << -3, 0.1091, 0.8;
-            eigen_angaxis_des = AngleAxisd(120*M_PI/180, Vector3d(1, 1, -1).normalized());
-            tf = 18;
-            break;
-        case 11:
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -1*M_PI/2, 3*M_PI/4, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 2, 1, 0.4;
-            eigen_angaxis_des = AngleAxisd(3.0075, Vector3d(0.9351, 0.2506, -0.2506).normalized());
-            tf = 10;
-            break;
-        case 12:
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -1*M_PI/2, 3*M_PI/4, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 5.5, 6.5, 1.2;
-            eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
-            tf = 25;
-            break;
-        case 13:
-            tx = 0, ty = 0, phi = 0, tz=0.2;
-            qa << 0, -0.4, 1.06, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << 2, 3, 0.15;
-            eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
-            tf = 18;
-            break;
-        case 14:
-            tx = 0, ty = 0, phi = 0, tz=0.05;
-            qa << 0, -0.4, 1.06, 5*M_PI/4, -1*M_PI/2, 0.0;
-            pos_des << -0.3, 0, 0.13;
-            eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
-            tf = 8;
-            break;
-        case 15:
-            // Dificult case, where the final position is far and the final
-            // orientation puts the joint 5 in a singular position
-            tx = 0, ty = 0, phi = M_PI/2, tz=0.05;
-            qa << -M_PI/2, -M_PI/4, M_PI/2, 3*M_PI/4, -M_PI/2, 0.0;
-            pos_des << 0.7221, 8, 0.7246;
-            eigen_angaxis_des = AngleAxisd(120*M_PI/180, Vector3d(-1, 1, -1).normalized());
-            tf = 14;
-            break;
-        default:
-            break;
+    case 1:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 3.0, -0.1091, 0.18;
+        eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        tf = 7;
+        break;
+    case 2:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 3.0, 0.0, 0.32;
+        eigen_angaxis_des = AngleAxisd(M_PI / 2.0, Vector3d(0, 1, 0).normalized());
+        tf = 9;
+        break;
+    case 3:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 2.0, 3.0, 1.3;
+        eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        tf = 10;
+        break;
+    case 4:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 1.0, -0.8, 0.4;
+        eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(1, 1, -1).normalized());
+        tf = 18;
+        break;
+    case 5:
+        tx = 0, ty = 0.1, phi = 0, tz = 0.2;
+        qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << -1.2, -1.2, 0.15;
+        eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(1, 0, 0).normalized());
+        tf = 10;
+        break;
+    case 6: //Example case that cannot be achieved with the given time
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << -2.2, 2.2, 1.5;
+        eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, -1, -1).normalized());
+        tf = 10;
+        break;
+    case 7:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 1, 1, 0.6;
+        eigen_angaxis_des = AngleAxisd(M_PI / 2, Vector3d(0, 1, 0).normalized());
+        tf = 6;
+        break;
+    case 8:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 1.2, 1.2, 0.7;
+        eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(-1, -1, 1).normalized());
+        tf = 8;
+        break;
+    case 9:
+        tx = 0, ty = 0, phi = 0, tz = 0.05;
+        qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 0.5, -3, 0.15;
+        eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(-1, 1, 1).normalized());
+        tf = 18;
+        break;
+    case 10:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << -3, 0.1091, 0.8;
+        eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(1, 1, -1).normalized());
+        tf = 18;
+        break;
+    case 11:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 2, 1, 0.4;
+        eigen_angaxis_des = AngleAxisd(3.0075, Vector3d(0.9351, 0.2506, -0.2506).normalized());
+        tf = 10;
+        break;
+    case 12:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 5.5, 6.5, 1.2;
+        eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        tf = 25;
+        break;
+    case 13:
+        tx = 0, ty = 0, phi = 0, tz = 0.2;
+        qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << 2, 3, 0.15;
+        eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        tf = 18;
+        break;
+    case 14:
+        tx = 0, ty = 0, phi = 0, tz = 0.05;
+        qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        pos_des << -0.3, 0, 0.13;
+        eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        tf = 8;
+        break;
+    case 15:
+        // Dificult case, where the final position is far and the final
+        // orientation puts the joint 5 in a singular position
+        tx = 0, ty = 0, phi = M_PI / 2, tz = 0.05;
+        qa << -M_PI / 2, -M_PI / 4, M_PI / 2, 3 * M_PI / 4, -M_PI / 2, 0.0;
+        pos_des << 0.7221, 8, 0.7246;
+        eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(-1, 1, -1).normalized());
+        tf = 14;
+        break;
+    default:
+        break;
     }
 
     // Store initial joint states in q
@@ -596,4 +606,3 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
     eigen_quatf = Quaterniond(eigen_angaxis_des);
     posef = Pose(pos_des, Quat(eigen_quatf));
 }
-
