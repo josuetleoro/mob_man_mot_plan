@@ -1,8 +1,0 @@
-<launch>
-    <!-- sim server node -->
-    <node pkg="mars_mot_plan" type="mars_mot_plan_sim_server_node" name="mars_mot_plan_sim_server" output="screen"/>   
-
-    <!-- actionlib client -->
-    <node pkg="actionlib" type="axclient.py" name="axclient_sim" args="/mars_mot_plan_sim_server"/>
-        
-</launch>

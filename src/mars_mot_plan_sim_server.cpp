@@ -71,14 +71,14 @@ public:
         VectorXd qa(6);
         try
         {
-            listener.waitForTransform("/map", "/base_footprint",
+            listener.waitForTransform("/vive_world", "/base_footprint",
                                       ros::Time(0), ros::Duration(0.2));
-            listener.lookupTransform("/map", "/base_footprint",
+            listener.lookupTransform("/vive_world", "/base_footprint",
                                      ros::Time(0), mob_plat_base_transform);
         }
         catch (tf::TransformException ex)
         {
-            ROS_WARN("Transform from frame map to base_footprint not available yet");
+            ROS_WARN("Transform from frame vive_world to base_footprint not available yet");
             ROS_ERROR("%s", ex.what());
             return;
         }

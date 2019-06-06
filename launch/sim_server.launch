@@ -1,0 +1,14 @@
+<launch>
+    <!-- Run on PC -->
+
+    <!-- sim server node -->
+    <node pkg="mars_mot_plan" type="mars_mot_plan_sim_server_node" name="mars_mot_plan_sim_server" output="screen"/>   
+
+    <!-- end effector interactive goal marker -->
+    <node pkg="mars_mot_plan" type="ee_goal_marker_node" name="ee_goal_marker_node">
+        <param name="world_frame" value="vive_world"/>
+    </node>
+
+    <!-- action client -->
+    <node pkg="actionlib" type="axclient.py" name="axclient_sim" args="/mars_mot_plan_sim_server"/> 
+</launch>
