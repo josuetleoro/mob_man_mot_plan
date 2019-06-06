@@ -22,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf
   actionlib
+  interactive_markers
 )
 
 ## System dependencies are found with CMake's conventions
@@ -100,6 +101,10 @@ add_executable(mars_mot_plan_exp_server_node src/mars_mot_plan_exp_server.cpp ${
 target_include_directories(mars_mot_plan_exp_server_node PRIVATE ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(mars_mot_plan_exp_server_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
 add_dependencies(mars_mot_plan_exp_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(ee_goal_marker_node src/ee_goal_marker.cpp)
+target_link_libraries(ee_goal_marker_node ${catkin_LIBRARIES})
+add_dependencies(ee_goal_marker_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 #############
 ## Install ##
