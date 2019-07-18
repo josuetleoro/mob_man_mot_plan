@@ -80,7 +80,7 @@ MarsUR5::MarsUR5()
     prevGradHJLim = VectorXd::Zero(9);
 
     // Initialize the variables for self-collision avoidance
-    elbowSafeDist = 0.6; wristSafeDist = 0.37;
+    elbowSafeDist = 0.61; wristSafeDist = 0.37;
     JElbow = VectorXd::Zero(9);
     JWrist = VectorXd::Zero(9);
     prevGradPElbow = VectorXd::Zero(9);
@@ -216,7 +216,13 @@ void MarsUR5::getJLimWeight(MatrixXd &wJLim)
 
         prevGradHJLim(i) = gradH;
         if (gradHDif >= 0)
+	    {
             wJLim(i, i) = 1 / sqrt(1 + gradH);
+	        if (wJLim(i, i) < 1e-2)
+	        {
+                wJLim(i, i) = 0;
+	        }
+	    }
         else
             wJLim(i, i) = 1;
     }
@@ -246,7 +252,13 @@ void MarsUR5::getElbowColWeight(double rho, double alpha, double beta, MatrixXd 
     for (int i = 2; i < 5; i++)
     {
         if (gradPDif(i) >= 0)
+        {
             wColElbow(i,i) = 1/sqrt(1 + gradPElbow(i));
+            if (wColElbow(i,i) < 1e-2)
+	        {
+                wColElbow(i,i) = 0;
+	        }
+        }
         else
             wColElbow(i,i) = 1;
     }
@@ -260,7 +272,7 @@ void MarsUR5::getWristColWeight(double rho, double alpha, double beta, MatrixXd 
     /* Calculate the wrist position and Jacobian
        The Jacobian is with respect to a point on the center of the wheels
        projected to the floor. This frame allows to define the vector pa_pb just
-       as the x position of the elbow minus the safe distance
+       as the x position of the wrist minus the safe distance
     */
     wristPos << 0.39225e0 * cos(q(4)) * cos(q(5)) * cos(q(6)) - 0.39225e0 * cos(q(4)) * sin(q(5)) * sin(q(6)) - 0.49e-1 + 0.425e0 * cos(q(4)) * cos(q(5)), 0.39225e0 * sin(q(4)) * cos(q(5)) * cos(q(6)) - 0.39225e0 * sin(q(4)) * sin(q(5)) * sin(q(6)) + 0.425e0 * sin(q(4)) * cos(q(5)), -0.39225e0 * sin(q(5)) * cos(q(6)) - 0.39225e0 * cos(q(5)) * sin(q(6)) + 0.645359e0 - 0.425e0 * sin(q(5)) + q(3);
     //cout << "wristPos: " << endl << wristPos.transpose() << endl;
@@ -285,7 +297,13 @@ void MarsUR5::getWristColWeight(double rho, double alpha, double beta, MatrixXd 
     for (int i = 3; i < 6; i++)
     {
         if (gradPDif(i) >= 0)
+        {
             wColWrist(i,i) = 1/sqrt(1 + gradPWrist(i));
+            if (wColWrist(i,i) < 1e-2)
+	        {
+                wColWrist(i,i) = 0;
+	        }
+        }
         else
             wColWrist(i,i) = 1;
     }
