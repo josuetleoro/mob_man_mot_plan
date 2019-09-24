@@ -72,7 +72,7 @@ MarsUR5::MarsUR5()
     qlimits(2,0) = 0.0; qlimits(2,1) = 0.25;
     qlimits(3,0) = -100*M_PI/180; qlimits(3,1) = 1*M_PI/180;
     qlimits(4,0) = -90*M_PI/180; qlimits(4,1) = 15*M_PI/180;
-    qlimits(5,0) = 0*M_PI/180; qlimits(5,1) = 180*M_PI/180;
+    qlimits(5,0) = 0*M_PI/180; qlimits(5,1) = 145*M_PI/180;
     qlimits(6,0) = -2*M_PI; qlimits(6,1) = 2*M_PI;
     qlimits(7,0) = -2*M_PI; qlimits(7,1) = 2*M_PI;
     qlimits(8,0) = -2*M_PI; qlimits(8,1) = 2*M_PI;
