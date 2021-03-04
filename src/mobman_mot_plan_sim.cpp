@@ -24,6 +24,7 @@ std::vector<double> stepSizeTrans(double tf, double ts, double blendPerc);
 template <class MatT>
 Eigen::Matrix<typename MatT::Scalar, MatT::ColsAtCompileTime, MatT::RowsAtCompileTime>
 pinv(const MatT &mat, typename MatT::Scalar tolerance = typename MatT::Scalar{1e-4}); // choose appropriately
+const double deg2rad = M_PI/180.0;
 
 void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf);
 
@@ -43,7 +44,7 @@ int main(int argc, char **argv)
 
     // Algorithm parameters
     double t0 = 0, ts = 1 / 50.0;
-    double alpha = 4;
+    double alpha = 20;
     double KpPos = 10, KpOr = 20;
 
     // Get the initial joint states and desired final pose
@@ -355,12 +356,23 @@ int main(int argc, char **argv)
         MMmanip.resize(NObt);
         UR5manip.resize(NObt);
     }
+    
+    // Divide manipulability by its maximum value
+    double mm_manip_max = *(std::max_element(std::begin(MMmanip), std::end(MMmanip)));
+    double arm_manip_max = *(std::max_element(std::begin(UR5manip), std::end(UR5manip)));
+
+    for (int i = 0; i < NObt; i++)
+    {
+        MMmanip.at(i) = MMmanip.at(i) / mm_manip_max;
+        UR5manip.at(i) = UR5manip.at(i) / arm_manip_max;
+    }   
+    
 
     // Figure (1)
     // Manipulability plots
     plt::figure_size(1600, 900);
     plt::subplot(2, 2, 1);
-    plt::named_plot("w_MM", timeObt, wMeasure);
+    // plt::named_plot("w_MM", timeObt, wMeasure);
     plt::named_plot("w_{p+a}", timeObt, MMmanip);
     plt::named_plot("w_{a}", timeObt, UR5manip);
     plt::grid(true);
@@ -535,6 +547,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 3.0, -0.1091, 0.18;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 7;
         break;
     case 2:
@@ -542,6 +555,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 3.0, 0.0, 0.32;
         eigen_angaxis_des = AngleAxisd(M_PI / 2.0, Vector3d(0, 1, 0).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 9;
         break;
     case 3:
@@ -549,6 +563,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 2.0, 3.0, 1.3;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 10;
         break;
     case 4:
@@ -556,6 +571,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 1.0, -0.8, 0.4;
         eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(1, 1, -1).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 18;
         break;
     case 5:
@@ -563,6 +579,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << -1.2, -1.2, 0.15;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(1, 0, 0).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 10;
         break;
     case 6: //Example case that cannot be achieved with the given time
@@ -570,6 +587,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << -2.2, 2.2, 1.5;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, -1, -1).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 10;
         break;
     case 7:
@@ -577,6 +595,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 1, 1, 0.6;
         eigen_angaxis_des = AngleAxisd(M_PI / 2, Vector3d(0, 1, 0).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 6;
         break;
     case 8:
@@ -584,6 +603,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 1.2, 1.2, 0.7;
         eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(-1, -1, 1).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 8;
         break;
     case 9:
@@ -591,6 +611,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 0.5, -3, 0.15;
         eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(-1, 1, 1).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 18;
         break;
     case 10:
@@ -598,6 +619,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << -3, 0.1091, 0.8;
         eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(1, 1, -1).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 18;
         break;
     case 11:
@@ -605,6 +627,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 2, 1, 0.4;
         eigen_angaxis_des = AngleAxisd(3.0075, Vector3d(0.9351, 0.2506, -0.2506).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 10;
         break;
     case 12:
@@ -612,6 +635,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 5.5, 6.5, 1.2;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 25;
         break;
     case 13:
@@ -619,6 +643,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 2, 3, 0.15;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 18;
         break;
     case 14:
@@ -626,6 +651,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << -0.3, 0, 0.13;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 8;
         break;
     case 15:
@@ -635,16 +661,37 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << -M_PI / 2, -M_PI / 4, M_PI / 2, 3 * M_PI / 4, -M_PI / 2, 0.0;
         pos_des << 0.7221, 8, 0.7246;
         eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(-1, 1, -1).normalized());
+        eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 14;
+        break;
+    case 16:
+        tx = -1.2, ty = 0.6, phi = M_PI, tz = 0.1;
+        qa << 0, -80*deg2rad, 110*deg2rad, -120*deg2rad, -90*deg2rad, 0.0;
+        pos_des << 1.6, -1.3, 1.2;
+        eigen_quatf = Quaterniond(0,1,0,0);
+        cout << "w: " << eigen_quatf.w() << endl;
+        cout << "x: " << eigen_quatf.x() << endl;
+        cout << "y: " << eigen_quatf.y() << endl;
+        cout << "z: " << eigen_quatf.z() << endl;
+        tf = 30;
+        break;
+    case 17:
+        tx = -1.64, ty = -0.35, phi = 0.0, tz = 0.24;
+        qa << 0, -80*deg2rad, 110*deg2rad, -120*deg2rad, -90*deg2rad, 0.0;
+        pos_des << 1.75, -0.4, 0.26;
+        eigen_quatf = Quaterniond(0.342,0,0.939,0);
+        cout << "w: " << eigen_quatf.w() << endl;
+        cout << "x: " << eigen_quatf.x() << endl;
+        cout << "y: " << eigen_quatf.y() << endl;
+        cout << "z: " << eigen_quatf.z() << endl;
+        tf = 18;
         break;
     default:
         break;
     }
-
     // Store initial joint states in q
     q = VectorXd(10);
     q << tx, ty, phi, tz, qa;
     // Store desired pose in the posef object
-    eigen_quatf = Quaterniond(eigen_angaxis_des);
     posef = Pose(pos_des, Quat(eigen_quatf));
 }
