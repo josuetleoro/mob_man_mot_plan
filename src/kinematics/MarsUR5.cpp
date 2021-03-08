@@ -88,8 +88,8 @@ MarsUR5::MarsUR5()
 
     // Initialize the variables for joint velocities limit avoidance
     dqlimits = VectorXd::Zero(9);
-    dqlimits(0) = 0.3;
-    dqlimits(1) = M_PI/4;
+    dqlimits(0) = 0.3;      //default 0.6
+    dqlimits(1) = M_PI/4;   //default pi/2
     dqlimits(2) = 0.02;
     dqlimits(3) = M_PI;
     dqlimits(4) = M_PI;
