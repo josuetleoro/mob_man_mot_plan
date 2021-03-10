@@ -1,6 +1,13 @@
+# path type
+uint8 PATH_TYPE_UNSPECIFIED = 0
+uint8 PATH_TYPE_LINE = 1            # A straight line between current pose and desPose
+uint8 PATH_TYPE_ELLIPTICAL = 2      # An elliptical path between current pase and desPose
+uint8 PATH_TYPE_CLOSED_PATH = 3     # A close path that starts at the current pose
+
 #goal defintion
 float32 trajTime
 geometry_msgs/Pose desPose
+uint8 pathType                      # Either LINE, ELLIPTICAL OR CLOSED_PATH
 ---
 #result definition
 float32 finalTime

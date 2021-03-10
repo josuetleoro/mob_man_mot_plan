@@ -106,24 +106,35 @@ add_dependencies(nmm_mot_plan_circle_sim_node ${${PROJECT_NAME}_EXPORTED_TARGETS
 add_executable(mobman_mot_plan_exp_node src/mobman_mot_plan_exp.cpp ${SOURCE_FILES})
 target_include_directories(mobman_mot_plan_exp_node PRIVATE ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(mobman_mot_plan_exp_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
-add_dependencies(mobman_mot_plan_exp_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(mobman_mot_plan_exp_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
 
 add_executable(mars_mot_plan_sim_server_node src/mars_mot_plan_sim_server.cpp ${SOURCE_FILES})
 target_include_directories(mars_mot_plan_sim_server_node PRIVATE ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(mars_mot_plan_sim_server_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
-add_dependencies(mars_mot_plan_sim_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(mars_mot_plan_sim_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
+
+add_executable(mars_mot_plan_sim_server_circle_node src/mars_mot_plan_sim_server_circle.cpp ${SOURCE_FILES})
+target_include_directories(mars_mot_plan_sim_server_circle_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(mars_mot_plan_sim_server_circle_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(mars_mot_plan_sim_server_circle_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
 
 ## Experimental node using odometry feedback
 add_executable(mars_mot_plan_exp_server_node src/mars_mot_plan_exp_server.cpp ${SOURCE_FILES})
 target_include_directories(mars_mot_plan_exp_server_node PRIVATE ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(mars_mot_plan_exp_server_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
-add_dependencies(mars_mot_plan_exp_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(mars_mot_plan_exp_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
 
 ## Experimental node using vive feedback
 add_executable(mars_mot_plan_vivefb_server_node src/mars_mot_plan_vivefb_server.cpp ${SOURCE_FILES})
 target_include_directories(mars_mot_plan_vivefb_server_node PRIVATE ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(mars_mot_plan_vivefb_server_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
-add_dependencies(mars_mot_plan_vivefb_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(mars_mot_plan_vivefb_server_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
+
+# Experimental node for circle path
+add_executable(mars_mot_plan_exp_server_circle_node src/mars_mot_plan_exp_server_circle.cpp ${SOURCE_FILES})
+target_include_directories(mars_mot_plan_exp_server_circle_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(mars_mot_plan_exp_server_circle_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(mars_mot_plan_exp_server_circle_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
 
 add_executable(ee_goal_marker_node src/ee_goal_marker.cpp)
 target_link_libraries(ee_goal_marker_node ${catkin_LIBRARIES})

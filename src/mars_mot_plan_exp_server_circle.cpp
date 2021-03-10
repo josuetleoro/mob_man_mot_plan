@@ -20,9 +20,7 @@
 #include "mars_mot_plan/kinematics/MarsUR5.h"
 #include "mars_mot_plan/kinematics/Pose.h"
 #include "mars_mot_plan/traj_plan/TrajPlan.h"
-#include "mars_mot_plan/traj_plan/LinePathTrajectory.h"
-#include "mars_mot_plan/traj_plan/EllipticPathTrajectory.h"
-#include "mars_mot_plan/traj_plan/LissajousPathTrajectory.h"
+#include "mars_mot_plan/traj_plan/CircleWavePathTrajectory.h"
 #include "matplotlibcpp.h"
 #include <vector>
 
@@ -42,6 +40,7 @@ public:
         alpha = 8;
         KpPos = 10;
         KpOr = 20;
+        ts = 1/freq;    // Set the initial sampling time
 
         wError = MatrixXd::Zero(6, 6);
         wError.block<3, 3>(0, 0) = Matrix3d::Identity() * KpPos;
@@ -187,31 +186,9 @@ public:
                   << endl;
         std::cout << "Trajectory time: " << tf << endl;
 
-        switch (goal->pathType)
+        if (goal->pathType != mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_CLOSED_PATH)
         {
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_LINE:
-            std::cout << "Path type: straight line" << endl;
-            posef = Pose(goal->desPose);
-            std::cout << "Tf:" << endl
-                << posef.matrixRep() << endl;
-            std::cout << "Posef:" << endl
-                  << posef << endl
-                  << endl;
-            break;
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_ELLIPTICAL:
-            std::cout << "Path type: elliptical path" << endl;
-            posef = Pose(goal->desPose);
-            std::cout << "Tf:" << endl
-                << posef.matrixRep() << endl;
-            std::cout << "Posef:" << endl
-                  << posef << endl
-                  << endl;
-            break;
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_CLOSED_PATH:
-            std::cout << "Path type: lissajous path" << endl;
-            break;
-        default:
-            ROS_ERROR("Invalid path type received.");
+            ROS_ERROR("Invalid path type received. Only closed path type is valid for circle trajectory.");
             as.setAborted();
             return;
         }
@@ -235,25 +212,7 @@ public:
         */
 
         std::cout << "Planing trajectory:" << endl;
-        // Select the type of path
-        switch (goal->pathType)
-        {
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_LINE:
-            desiredTraj = new LinePathTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                                   posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                                   0.0, tf);
-            break;
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_ELLIPTICAL:
-            desiredTraj = new EllipticPathTrajectory(pose0, posef, 0.0, tf);
-            break;
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_CLOSED_PATH:
-            desiredTraj = new LissajousPathTrajectory(pose0, 0.0, tf, tf*0.125);
-            break;
-        default:
-            ROS_ERROR("Trajectory planning failed, invalid path type received.");
-            as.setAborted();
-            return;
-        }
+        desiredTraj = CirclePathTrajectory(pose0, 0.0, tf, tf*0.125, 1.6, 0.25, 4);
 
         /*
             **********************************************************
@@ -287,6 +246,7 @@ public:
         bool success = true;
         int k = 0;
         trajDuration = 0.0;
+        prev_pose_des = pose0;  // The intial prev_pose is the starting pose
         std::cout << "Motion planning started" << endl;
         startTime = ros::Time::now();
         nowTime = startTime;
@@ -340,15 +300,17 @@ public:
             Wmatrix = Wjlim * WColElbow * WColWrist * invTq;
 
             // Compute the position and orientation error
-            poseError.push_back(Pose::pose_diff(desiredTraj->getPose(trajDuration), pose.at(k)));
+            pose_des = desiredTraj.getPose(trajDuration);
+            poseError.push_back(Pose::pose_diff(pose_des, pose.at(k)));
 
             // Compute the particular and homogeneous solutions
             // particular solution
             JBar = robot.getJacobianBar();
             JBarW = JBar * Wmatrix;
             invJBarW = pinv(JBarW);
-            partSol = invJBarW * (desiredTraj->getVel(trajDuration) + wError * poseError.at(k));
+            partSol = invJBarW * (desiredTraj.getVel(trajDuration, ts, prev_pose_des.getOrientation()) + wError * poseError.at(k));
             partSol = Wmatrix * partSol;
+            prev_pose_des = pose_des;
 
             // Compute the step size transition
             trans.push_back(stepSizeTrans(trajDuration));
@@ -401,7 +363,7 @@ public:
                 nowTime = ros::Time::now();
                 trajDuration = (nowTime - startTime).toSec();
 
-                //ts = (nowTime - prevTime).toSec();
+                ts = (nowTime - prevTime).toSec();
                 //q.push_back(q.at(k) + dq.at(k) * ts);
 
                 // Store the new joint values
@@ -431,7 +393,7 @@ public:
         cout << "Trajectory duration: " << trajDuration << endl;
         cout << "Desired trajectory time: " << tf << endl;
 
-        VectorXd finalPoseError = Pose::pose_diff(desiredTraj->getPose(tf), pose.back());
+        VectorXd finalPoseError = Pose::pose_diff(desiredTraj.getPose(tf), pose.back());
         double finalPosErrorNorm = finalPoseError.head(3).norm();
         cout << "Final position error norm: " << finalPosErrorNorm << endl;
         cout << "Final orientation error norm: " << finalPoseError.tail(3).norm() << endl;
@@ -495,7 +457,7 @@ private:
     double trajDuration;
     // Variables to be calculated before motion planning
     Pose pose0, posef;
-    Trajectory *desiredTraj;
+    CirclePathTrajectory desiredTraj;
     // Step size trasition variables
     std::vector<double> stepVarCoeff;
     double stepTb1;
@@ -505,6 +467,8 @@ private:
     std::vector<VectorXd> q, eta, dq; // Joint position and velocities
     std::vector<Pose> pose;           // pose at each iteration
     std::vector<VectorXd> poseError;  // pose error at each tireation
+    Pose pose_des;
+    Pose prev_pose_des;               // previous desired pose (Needed for circle path)
     std::vector<double> time, wMeasure, MMmanip, UR5manip;
     ros::Time startTime, nowTime, prevTime;
 

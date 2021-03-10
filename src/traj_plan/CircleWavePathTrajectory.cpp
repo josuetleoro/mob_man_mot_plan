@@ -154,8 +154,12 @@ Quat CirclePathTrajectory::trajOrient(double t)
 
 Vector3d CirclePathTrajectory::trajAngVel(double t, double ts, const Quat &quat_prev)
 {
-    Quat quat_des = trajOrient(t);
-    Vector3d vel = 2*quatDiff(quat_prev, quat_des).getV()/ts;
+    Vector3d vel(0, 0, 0);
+    if (t > ts) // The first angular velocity is zero, i.e. t <= ts
+    {
+        Quat quat_des = trajOrient(t);
+        vel = 2*quatDiff(quat_prev, quat_des).getV()/ts;
+    }
     return vel;
 }
 
