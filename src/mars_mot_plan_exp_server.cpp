@@ -336,10 +336,10 @@ public:
                 alphak = minAlpha;
             }
 
-            cout << "trajDuration: " << trajDuration << endl;
+            /* cout << "trajDuration: " << trajDuration << endl;
             cout << "WMatrix(3): " << Wmatrix(3, 3) << endl;
             cout << "partSol(3): " << partSol(3) << endl;
-            cout << "homSol(3): " << homSol(3) << endl;
+            cout << "homSol(3): " << homSol(3) << endl;*/
 
             // Compute the joint velocities
             eta.push_back(partSol + alphak * homSol);
@@ -557,6 +557,7 @@ private:
     void recordData()
     {
         string files_dir = ros::package::getPath("mars_mot_plan") + "/data/";
+        string traj_param_file_path = files_dir + "traj_param.csv";
         string time_file_path = files_dir + "time.csv";
         string manip_file_path = files_dir + "manip.csv";
         string pose_error_file_path = files_dir + "pose_error.csv";
@@ -564,14 +565,53 @@ private:
         string joint_vel_file_path = files_dir + "joint_vel.csv"; // Joint quasi velocities
         string col_dist_file_path = files_dir + "col_dist.csv";
 
-        fstream time_fs, manip_fs, pose_error_fs, joint_pos_fs, joint_vel_fs, col_dist_fs;
+        fstream traj_param_fs, time_fs, manip_fs, pose_error_fs, joint_pos_fs, joint_vel_fs, col_dist_fs;
 
+        traj_param_fs.open(traj_param_file_path.c_str(), std::fstream::out);
         time_fs.open(time_file_path.c_str(), std::fstream::out);
         manip_fs.open(manip_file_path.c_str(), std::fstream::out);
         pose_error_fs.open(pose_error_file_path.c_str(), std::fstream::out);
         joint_pos_fs.open(joint_pos_file_path.c_str(), std::fstream::out);
         joint_vel_fs.open(joint_vel_file_path.c_str(), std::fstream::out); // Joint quasi velocities
         col_dist_fs.open(col_dist_file_path.c_str(), std::fstream::out);   // elbowDist, wristDist, wristHeight
+
+        //Save trajectory parameters
+        // pose0 (x,y,z,qw,qx,qy,qz)
+        // posedes (x,y,z,qw,qx,qy,qz)
+        // ts (seconds)
+        // tf (seconds)
+        double traj0_x, traj0_y, traj0_z, traj0_qw, traj0_qx, traj0_qy, traj0_qz;
+        double trajdes_x, trajdes_y, trajdes_z, trajdes_qw, trajdes_qx, trajdes_qy, trajdes_qz;
+        traj0_x = pose0.position(0);
+        traj0_y = pose0.position(1);
+        traj0_z = pose0.position(2);
+        traj0_qw = pose0.orientation.w;
+        traj0_qx = pose0.orientation.x;
+        traj0_qy = pose0.orientation.y;
+        traj0_qz = pose0.orientation.z;
+        trajdes_x = posef.position(0);
+        trajdes_y = posef.position(1);
+        trajdes_z = posef.position(2);
+        trajdes_qw = posef.orientation.w;
+        trajdes_qx = posef.orientation.x;
+        trajdes_qy = posef.orientation.y;
+        trajdes_qz = posef.orientation.z;
+        traj_param_fs << std::to_string(traj0_x) << ","
+                      << std::to_string(traj0_y) << ","
+                      << std::to_string(traj0_z) << ","
+                      << std::to_string(traj0_qw) << ","
+                      << std::to_string(traj0_qx) << ","
+                      << std::to_string(traj0_qy) << ","
+                      << std::to_string(traj0_qz) << "\n";
+        traj_param_fs << std::to_string(trajdes_x) << ","
+                      << std::to_string(trajdes_y) << ","
+                      << std::to_string(trajdes_z) << ","
+                      << std::to_string(trajdes_qw) << ","
+                      << std::to_string(trajdes_qx) << ","
+                      << std::to_string(trajdes_qy) << ","
+                      << std::to_string(trajdes_qz) << "\n";
+        traj_param_fs << std::to_string(1.0/freq) << "\n";
+        traj_param_fs << std::to_string(tf) << "\n";            
 
         double N = time.size();
         for (int k = 0; k < N; k++)
@@ -620,6 +660,7 @@ private:
                         << std::to_string(wristDistVector.at(k)) << ","
                         << std::to_string(wristHeightVector.at(k)) << "\n";
         }
+        traj_param_fs.close();
         time_fs.close();
         manip_fs.close();
         pose_error_fs.close();

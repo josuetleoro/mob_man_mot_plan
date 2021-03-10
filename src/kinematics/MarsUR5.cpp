@@ -80,7 +80,7 @@ MarsUR5::MarsUR5()
     prevGradHJLim = VectorXd::Zero(9);
 
     // Initialize the variables for self-collision avoidance
-    elbowSafeDist = 0.61; wristSafeDist = 0.37;
+    elbowSafeDist = 0.61; wristSafeDist = 0.35;
     JElbow = VectorXd::Zero(9);
     JWrist = VectorXd::Zero(9);
     prevGradPElbow = VectorXd::Zero(9);
@@ -88,9 +88,9 @@ MarsUR5::MarsUR5()
 
     // Initialize the variables for joint velocities limit avoidance
     dqlimits = VectorXd::Zero(9);
-    dqlimits(0) = 0.6;
-    dqlimits(1) = M_PI/2;
-    dqlimits(2) = 0.1;
+    dqlimits(0) = 0.3;  //default 0.6
+    dqlimits(1) = M_PI/4;  //default pi/2
+    dqlimits(2) = 0.025;  
     dqlimits(3) = M_PI;
     dqlimits(4) = M_PI;
     dqlimits(5) = M_PI;
@@ -216,6 +216,7 @@ void MarsUR5::getJLimWeight(MatrixXd &wJLim)
 
         prevGradHJLim(i) = gradH;
         if (gradHDif >= 0)
+        //if (gradHDif > -1e-2)
 	    {
             wJLim(i, i) = 1 / sqrt(1 + gradH);
 	        if (wJLim(i, i) < 1e-2)
@@ -252,6 +253,7 @@ void MarsUR5::getElbowColWeight(double rho, double alpha, double beta, MatrixXd 
     for (int i = 2; i < 5; i++)
     {
         if (gradPDif(i) >= 0)
+        //if (gradPDif(i) > -1e-2)
         {
             wColElbow(i,i) = 1/sqrt(1 + gradPElbow(i));
             if (wColElbow(i,i) < 1e-2)
@@ -297,6 +299,7 @@ void MarsUR5::getWristColWeight(double rho, double alpha, double beta, MatrixXd 
     for (int i = 3; i < 6; i++)
     {
         if (gradPDif(i) >= 0)
+        //if (gradPDif(i) > -1e-2)
         {
             wColWrist(i,i) = 1/sqrt(1 + gradPWrist(i));
             if (wColWrist(i,i) < 1e-2)
