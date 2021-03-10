@@ -2,6 +2,7 @@
 #include "mars_mot_plan/kinematics/Pose.h"
 #include "mars_mot_plan/traj_plan/TrajPlan.h"
 #include "mars_mot_plan/traj_plan/PoseTrajectory.h"
+#include "mars_mot_plan/traj_plan/EllipticPathTraj.h"
 #include "matplotlibcpp.h"
 #include <vector>
 
@@ -44,7 +45,7 @@ int main(int argc, char **argv)
 
     // Algorithm parameters
     double t0 = 0, ts = 1 / 50.0;
-    double alpha = 20;
+    double alpha = 10;
     double KpPos = 10, KpOr = 20;
 
     // Get the initial joint states and desired final pose
@@ -83,9 +84,7 @@ int main(int argc, char **argv)
         **********************************************************
     */
     high_resolution_clock::time_point start = high_resolution_clock::now();
-    PoseTrajectory desiredTraj(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                               posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                               t0, tf, ts);
+    EllipticPathTraj desiredTraj(pose0, posef, t0, tf, ts);
     cout << "TrajPlan completed" << endl;
     double N = desiredTraj.size();
 
@@ -403,6 +402,7 @@ int main(int argc, char **argv)
     plt::named_plot("e_{Px}", timeObt, epos_x);
     plt::named_plot("e_{Py}", timeObt, epos_y);
     plt::named_plot("e_{Pz}", timeObt, epos_z);
+    plt::ylim(1.5e-03,-1.5e-03);
     plt::grid(true);
     plt::xlabel("time");
     plt::legend();
@@ -410,6 +410,7 @@ int main(int argc, char **argv)
     plt::named_plot("e_{Ox}", timeObt, eor_x);
     plt::named_plot("e_{Oy}", timeObt, eor_y);
     plt::named_plot("e_{Oz}", timeObt, eor_z);
+    plt::ylim(1e-03,-1e-03);
     plt::grid(true);
     plt::xlabel("time");
     plt::legend();
@@ -483,17 +484,28 @@ int main(int argc, char **argv)
     plt::xlabel("time");
     plt::legend();
 
-    // Path plot    
+    // Path plot
+    // plt::figure(1);
+    // plt::subplot(2, 1, 1);
+    // plt::named_plot("XY", getTrajPosition('x'), getTrajPosition('y'), "b");
+    // plt::xlabel("X(m)");
+    // plt::ylabel("Y(m)");
+    // plt::grid(true);
+    // plt::subplot(2, 1, 2);
+    // plt::named_plot("Z", time, getTrajPosition('z'), "b");    
+    // plt::xlabel("time(s)");
+    // plt::ylabel("Z(m)");
+    // plt::grid(true);
     plt::figure_size(1600, 900);
-    plt::subplot(2, 2, 1);
+    plt::subplot(2, 1, 1);
     plt::named_plot("XY", ee_pos_x, ee_pos_y, "b");
     plt::xlabel("X(m)");
     plt::ylabel("Y(m)");
     plt::grid(true);
-    plt::subplot(2, 2, 2);
-    plt::named_plot("XZ", ee_pos_x, ee_pos_z, "b");    
-    plt::xlabel("X(m)");
-    plt::ylabel("Y(m)");
+    plt::subplot(2, 1, 2);
+    plt::named_plot("Z", timeObt, ee_pos_z, "b");    
+    plt::xlabel("time(s)");
+    plt::ylabel("Z(m)");
     plt::grid(true);
 
     plt::show();
@@ -573,7 +585,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
     case 2:
         tx = 0, ty = 0, phi = 0, tz = 0.2;
         qa << 0, -0.4, 1.06, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
-        pos_des << 3.0, 0.0, 0.32;
+        pos_des << 3.0, -0.1091, 0.18;
         eigen_angaxis_des = AngleAxisd(M_PI / 2.0, Vector3d(0, 1, 0).normalized());
         eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 9;
@@ -600,7 +612,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         pos_des << -1.2, -1.2, 0.15;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(1, 0, 0).normalized());
         eigen_quatf = Quaterniond(eigen_angaxis_des);
-        tf = 15;
+        tf = 10;
         break;
     case 6: //Example case that cannot be achieved with the given time
         tx = 0, ty = 0, phi = 0, tz = 0.2;
@@ -608,7 +620,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         pos_des << -2.2, 2.2, 1.5;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, -1, -1).normalized());
         eigen_quatf = Quaterniond(eigen_angaxis_des);
-        tf = 15;
+        tf = 10;
         break;
     case 7:
         tx = 0, ty = 0, phi = 0, tz = 0.2;
@@ -622,7 +634,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         tx = 0, ty = 0, phi = 0, tz = 0.2;
         qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
         pos_des << 1.2, 1.2, 0.7;
-        eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(-1, 1, 1).normalized());
+        eigen_angaxis_des = AngleAxisd(120 * M_PI / 180, Vector3d(-1, -1, 1).normalized());
         eigen_quatf = Quaterniond(eigen_angaxis_des);
         tf = 8;
         break;
@@ -652,7 +664,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         break;
     case 12:
         tx = 0, ty = 0, phi = 0, tz = 0.2;
-        qa << 0, -1 * M_PI / 2, 3 * M_PI / 4, 5 * M_PI / 4, -1 * M_PI / 2, 0.0;
+        qa << 0, -1 * M_PI / 2, M_PI / 2, -1 * M_PI / 2, -1 * M_PI / 2, 0.0;
         pos_des << 5.5, 6.5, 1.2;
         eigen_angaxis_des = AngleAxisd(M_PI, Vector3d(0, 1, 0).normalized());
         eigen_quatf = Quaterniond(eigen_angaxis_des);
@@ -687,24 +699,24 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
     case 16:
         tx = -1.2, ty = 0.6, phi = M_PI, tz = 0.1;
         qa << 0, -80*deg2rad, 110*deg2rad, -120*deg2rad, -90*deg2rad, 0.0;
-        pos_des << 1.6, -1.3, 1.2;
+        pos_des << 1.3, -1.3, 1.2;
         eigen_quatf = Quaterniond(0,1,0,0);
         cout << "w: " << eigen_quatf.w() << endl;
         cout << "x: " << eigen_quatf.x() << endl;
         cout << "y: " << eigen_quatf.y() << endl;
         cout << "z: " << eigen_quatf.z() << endl;
-        tf = 30;
+        tf = 25;
         break;
     case 17:
         tx = -1.64, ty = -0.35, phi = 0.0, tz = 0.24;
         qa << 0, -80*deg2rad, 110*deg2rad, -120*deg2rad, -90*deg2rad, 0.0;
-        pos_des << 1.75, -0.4, 0.26;
+        pos_des << 1.5, -0.4, 0.26;
         eigen_quatf = Quaterniond(0.342,0,0.939,0);
         cout << "w: " << eigen_quatf.w() << endl;
         cout << "x: " << eigen_quatf.x() << endl;
         cout << "y: " << eigen_quatf.y() << endl;
         cout << "z: " << eigen_quatf.z() << endl;
-        tf = 18;
+        tf = 20;
         break;
     default:
         break;
