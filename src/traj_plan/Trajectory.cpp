@@ -7,7 +7,7 @@ using namespace Eigen;
 Trajectory::Trajectory(double ti, double tf)
 {
     this->ti = ti;
-    this->tf = ti;
+    this->tf = tf;
 }
 
 void Trajectory::validateTime(double t)
@@ -16,6 +16,16 @@ void Trajectory::validateTime(double t)
     {
         throw "requested time outside of trajectory period";
     }
+}
+
+double Trajectory::getTi()
+{
+    return ti;
+}
+
+double Trajectory::getTf()
+{
+    return tf;
 }
 
 double Trajectory::getPos(char coord, double t)
@@ -115,7 +125,7 @@ Pose Trajectory::getPose(double t)
 {
     validateTime(t);
     Vector3d pos = trajPos(t);
-    Quat orient = trajOrient(t);
+    Quat orient = trajOrient(t);    
     return Pose(pos, orient);
 }
 
@@ -126,6 +136,7 @@ VectorXd Trajectory::getPoseVec(double t)
 
 VectorXd Trajectory::getVel(double t)
 {
+    validateTime(t);
     VectorXd vel(6);
     vel.head(3) = trajLinVel(t);
     vel.tail(3) = trajAngVel(t);

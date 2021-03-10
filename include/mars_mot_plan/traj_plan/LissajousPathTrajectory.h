@@ -1,5 +1,5 @@
-#ifndef ELLIPTIC_PATH_TRAJECTORY_H
-#define ELLIPTIC_PATH_TRAJECTORY_H
+#ifndef LISSAJOUS_PATH_TRAJECTORY_H
+#define LISSAJOUS_PATH_TRAJECTORY_H
 
 #include <math.h>
 #include <Eigen/Dense>
@@ -12,22 +12,16 @@
 using namespace std;
 using namespace Eigen;
 
-class EllipticPathTrajectory: public Trajectory
+class LissajousPathTrajectory: public Trajectory
 {
 protected:
-    // Path parameters
-    Vector2d center;
-    double a, b, thi, thf, m_z, zi;
     Pose posei, posef;
-    double s, ds, dds;  // Timing variable s
-    std::vector<double> sCoeff;
-    std::vector<Quat> orientCoeff;    
-
-    double realmod (double x, double y)
-    {
-        double result = fmod(x, y);
-        return result >= 0 ? result : result + y;
-    };
+    Quat orienti;
+    // Path parameters
+    double a, b, c, wa, wb, deltax, deltay;
+    double si, sf, pa_x;
+    double vel, max_a;
+    double s, ds, tb;  // Timing variable s
 
     /**
      * Returns the timing variable (s) at time t.
@@ -62,10 +56,10 @@ protected:
 public:
 
     // Default constructor
-    EllipticPathTrajectory();
+    LissajousPathTrajectory();
 
     // Computes trajectory parameters
-    EllipticPathTrajectory(Pose posei, Pose posef, double ti, double tf);
+    LissajousPathTrajectory(Pose posei, double ti, double tf, double tb);
     
 };
 

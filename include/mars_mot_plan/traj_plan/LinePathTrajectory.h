@@ -1,5 +1,5 @@
-#ifndef ELLIPTIC_PATH_TRAJECTORY_H
-#define ELLIPTIC_PATH_TRAJECTORY_H
+#ifndef LINE_PATH_TRAJECTORY_H
+#define LINE_PATH_TRAJECTORY_H
 
 #include <math.h>
 #include <Eigen/Dense>
@@ -12,32 +12,13 @@
 using namespace std;
 using namespace Eigen;
 
-class EllipticPathTrajectory: public Trajectory
+class LinePathTrajectory: public Trajectory
 {
 protected:
     // Path parameters
-    Vector2d center;
-    double a, b, thi, thf, m_z, zi;
     Pose posei, posef;
-    double s, ds, dds;  // Timing variable s
-    std::vector<double> sCoeff;
-    std::vector<Quat> orientCoeff;    
-
-    double realmod (double x, double y)
-    {
-        double result = fmod(x, y);
-        return result >= 0 ? result : result + y;
-    };
-
-    /**
-     * Returns the timing variable (s) at time t.
-     */
-    double getSAtTime(double t);
-
-    /**
-     * Returns the derivative of the timing variable (ds) at time t.
-     */
-    double getDsAtTime(double t);
+    std::vector<double> posXCoeff, posYCoeff, posZCoeff;
+    std::vector<Quat> orientCoeff;
 
     /**
      * Returns the position vector given time t.
@@ -62,10 +43,12 @@ protected:
 public:
 
     // Default constructor
-    EllipticPathTrajectory();
+    LinePathTrajectory();
 
     // Computes trajectory parameters
-    EllipticPathTrajectory(Pose posei, Pose posef, double ti, double tf);
+    LinePathTrajectory(Pose posei, Vector3d linVeli, Vector3d linAcci, Vector3d angVeli, Vector3d angAcci,
+                   Pose posef, Vector3d linVelf, Vector3d linAccf, Vector3d angVelf, Vector3d angAccf,
+                   double ti, double tf);
     
 };
 

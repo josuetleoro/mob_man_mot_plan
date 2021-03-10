@@ -1,5 +1,5 @@
-#ifndef TRAJECTORY_H
-#define TRAJECTORY_H
+#ifndef CIRCLE_PATH_TRAJECTORY_H
+#define CIRCLE_PATH_TRAJECTORY_H
 
 #include <math.h>
 #include <Eigen/Dense>
@@ -11,18 +11,27 @@
 using namespace std;
 using namespace Eigen;
 
-class Trajectory
+class CirclePathTrajectory
 {
-private:
+protected:
     double ti, tf;
+    Pose posei, posef;
+    Vector3d orienti;
+    // Path parameters
+    double radius, z_height, z_freq;
+    Vector3d target;
+    Vector3d approach;
+    
+    // Timing variables
+    double si, sf, pa_x;
+    double vel, max_a;
+    double s, ds, tb;  // Timing variable s
 
-protected:    
+    // Needed to find the angular velocity
+    Quat prev_orient;
+    Quat quatDiff(const Quat &q0, const Quat &q1);
 
-    double realmod (double x, double y)
-    {
-        double result = fmod(x, y);
-        return result >= 0 ? result : result + y;
-    };
+    double realmod(double x, double y);
 
     /**
      * Validate the time is inside the trajectory
@@ -30,39 +39,42 @@ protected:
     void validateTime(double t);
 
     /**
-     * Get the trajectory starting time
+     * Returns the timing variable (s) at time t.
      */
-    double getTi();
+    double getSAtTime(double t);
 
     /**
-     * Get the trajectory end time
+     * Returns the derivative of the timing variable (ds) at time t.
      */
-    double getTf();
+    double getDsAtTime(double t);
 
     /**
      * Returns the position vector given time t.
      */
-    virtual Vector3d trajPos(double t) = 0;
+    Vector3d trajPos(double t);
 
     /**
      * Returns the linear velocity given time t.
      */
-    virtual Vector3d trajLinVel(double t) = 0;
+    Vector3d trajLinVel(double t);
 
     /**
      * Returns the quaternion orientation given time t.
      */
-    virtual Quat trajOrient(double t) = 0;
+    Quat trajOrient(double t);
 
     /**
      * Returns the angular velocity given time t.
      */
-    virtual Vector3d trajAngVel(double t) = 0;
+    Vector3d trajAngVel(double t, double ts, const Quat &prev_orient);
 
 public:
 
-    // Constructor
-    Trajectory(double ti, double tf);
+    // Default constructor
+    CirclePathTrajectory();
+
+    // Computes trajectory parameters
+    CirclePathTrajectory(Pose posei, double ti, double tf, double tb, double radius = 1.6, double z_height = 0.25, double z_freq = 4);
     
     /**
      * Returns the position coordinate 'coord' at time t.
@@ -77,21 +89,9 @@ public:
     double getLinVel(char coord, double t);
 
     /**
-     * Returns the quaternion orientation 'part' at time t.
-     * The variable sel can have the values {w',x','y','z'}.
-     */
-    double getOrientPart(char part, double t);
-
-    /**
      * Returns the quaternion orientation at time t.
      */
     Quat getOrient(double t);
-
-    /**
-     * Returns the angular velocity coordinate 'coord' at time t.
-     * The variable sel can have the values {'x','y','z'}.
-     */    
-    double getAngVel(char coord, double t);
 
     /**
      * Returns the pose at time t.
@@ -106,8 +106,8 @@ public:
     /**
      * Returns the velocity vector at time t.
      */
-    VectorXd getVel(double t);
-    
+    VectorXd getVel(double t, double ts, const Quat &prev_orient);
+
 };
 
 #endif

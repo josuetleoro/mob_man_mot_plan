@@ -82,8 +82,10 @@ set(SOURCE_FILES
   src/traj_plan/PoseTrajectory.cpp
   src/traj_plan/PoseIterTrajectory.cpp
   src/traj_plan/Trajectory.cpp
-  src/traj_plan/EllipticPathTraj.cpp
+  src/traj_plan/LinePathTrajectory.cpp
   src/traj_plan/EllipticPathTrajectory.cpp
+  src/traj_plan/LissajousPathTrajectory.cpp
+  src/traj_plan/CircleWavePathTrajectory.cpp
 )
 
 add_executable(mobman_mot_plan_sim_node src/mobman_mot_plan_sim.cpp ${SOURCE_FILES})
@@ -91,15 +93,15 @@ target_include_directories(mobman_mot_plan_sim_node PRIVATE ${PYTHON_INCLUDE_DIR
 target_link_libraries(mobman_mot_plan_sim_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
 add_dependencies(mobman_mot_plan_sim_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(nmm_mot_plan_sim_ellip_node src/nmm_mot_plan_sim_ellip.cpp ${SOURCE_FILES})
-target_include_directories(nmm_mot_plan_sim_ellip_node PRIVATE ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(nmm_mot_plan_sim_ellip_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
-add_dependencies(nmm_mot_plan_sim_ellip_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(nmm_mot_plan_sim_iter_node src/nmm_mot_plan_sim_iter.cpp ${SOURCE_FILES})
+target_include_directories(nmm_mot_plan_sim_iter_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(nmm_mot_plan_sim_iter_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(nmm_mot_plan_sim_iter_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(nmm_mot_plan_sim_ellip_iter_node src/nmm_mot_plan_sim_ellip_iter.cpp ${SOURCE_FILES})
-target_include_directories(nmm_mot_plan_sim_ellip_iter_node PRIVATE ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(nmm_mot_plan_sim_ellip_iter_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
-add_dependencies(nmm_mot_plan_sim_ellip_iter_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_executable(nmm_mot_plan_circle_sim_node src/nmm_mot_plan_circle_sim.cpp ${SOURCE_FILES})
+target_include_directories(nmm_mot_plan_circle_sim_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(nmm_mot_plan_circle_sim_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(nmm_mot_plan_circle_sim_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_executable(mobman_mot_plan_exp_node src/mobman_mot_plan_exp.cpp ${SOURCE_FILES})
 target_include_directories(mobman_mot_plan_exp_node PRIVATE ${PYTHON_INCLUDE_DIRS})

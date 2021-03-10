@@ -7,7 +7,6 @@ using namespace Eigen;
 EllipticPathTrajectory::EllipticPathTrajectory()
 :Trajectory(0, 0)
 {
-    ti = 0, tf = 0;
     a =0; b=0; thi=0; thf=0; m_z=0, zi=0;
     
     orientCoeff.clear();
@@ -17,7 +16,7 @@ EllipticPathTrajectory::EllipticPathTrajectory()
 EllipticPathTrajectory::EllipticPathTrajectory(Pose posei, Pose posef, double ti, double tf)
 :Trajectory(ti, tf)
 {
-    this-> ti = ti; this->tf = tf; this->posei = posei; this->posef = posef;
+    this->posei = posei; this->posef = posef;
 
     Vector2d p1 = posei.getPos().head(2);
     Vector2d p2 = posef.getPos().head(2);
@@ -108,139 +107,10 @@ Vector3d EllipticPathTrajectory::trajLinVel(double t)
 
 Quat EllipticPathTrajectory::trajOrient(double t)
 {
-    return TrajPlan::quatPol(orientCoeff, ti, tf, t);;
+    return TrajPlan::quatPol(orientCoeff, getTi(), getTf(), t);
 }
 
 Vector3d EllipticPathTrajectory::trajAngVel(double t)
 {
-    return TrajPlan::wPol(orientCoeff, ti, tf, t);
+    return TrajPlan::wPol(orientCoeff, getTi(), getTf(), t);
 }
-
-// double EllipticPathTrajectory::getPos(char coord, double t)
-// {
-//     validateTime(t);
-//     // Find the timing parameter value
-//     s = TrajPlan::qPol(sCoeff, t);
-//     // Get the position at value s
-//     Vector3d pos = trajPos(s);
-
-//     switch (coord)
-//     {
-//     case 'x':
-//         return pos(0);
-//     case 'y':
-//         return pos(1);
-//     case 'z':
-//         return pos(2);
-//     default:
-//         string errStr = "The required position coordinate ";
-//         errStr.append(1, coord);
-//         errStr.append(" does not exist.");
-//         throw errStr;
-//     }
-// }
-
-// double EllipticPathTrajectory::getLinVel(char coord, double t)
-// {
-//     validateTime(t);
-//     // Find the timing parameter value and its derivative
-//     s = TrajPlan::qPol(sCoeff, t);
-//     ds = TrajPlan::dqPol(sCoeff, t);
-//     // Get the velocity at value s and derivative ds
-//     Vector3d vel = trajVel(s, ds);
-
-//     switch (coord)
-//     {
-//     case 'x':
-//         return vel(0);
-//     case 'y':
-//         return vel(1);
-//     case 'z':
-//         return vel(2);
-//     default:
-//         string errStr = "The required velocity ";
-//         errStr.append(1, coord);
-//         errStr.append(" does not exist.");
-//         throw errStr;
-//     }
-// }
-
-// double EllipticPathTrajectory::getOrientPart(char part, double t)
-// {
-//     validateTime(t);
-//     Quat Q = TrajPlan::quatPol(orientCoeff, ti, tf, t);
-//     double quatPart;
-//     switch(part)
-//     {
-//     case 'w':
-//         quatPart = Q.w;
-//         break;
-//     case 'x':
-//         quatPart = Q.x;
-//         break;
-//     case 'y':
-//         quatPart = Q.y;
-//         break;
-//     case 'z':
-//         quatPart = Q.z;
-//         break;
-//     default:
-//         string errStr = "Quaternion does not contain element ";
-//         errStr.append(1, part);
-//         errStr.append(".");
-//         throw errStr;
-//     }
-//     return quatPart;
-// }
-
-// Quat EllipticPathTrajectory::getOrient(double t)
-// {
-//     validateTime(t);
-//     return TrajPlan::quatPol(orientCoeff, ti, tf, t);
-// }
-
-// double EllipticPathTrajectory::getAngVel(char coord, double t)
-// {
-//     validateTime(t);
-//     Vector3d w = TrajPlan::wPol(orientCoeff, ti, tf, t);
-//     switch (coord)
-//     {
-//     case 'x':
-//         return w(0);
-//     case 'y':
-//         return w(1);
-//     case 'z':
-//         return w(2);
-//     default:
-//         string errStr = "The required position coordinate ";
-//         errStr.append(1, coord);
-//         errStr.append(" does not exist.");
-//         throw errStr;
-//     }
-// }
-
-// Pose EllipticPathTrajectory::getPose(double t)
-// {
-//     validateTime(t);
-//     // Find the timing parameter value
-//     s = TrajPlan::qPol(sCoeff, t);
-//     // Get the position at value s
-//     Vector3d pos = trajPos(s);
-//     return Pose(pos, TrajPlan::quatPol(orientCoeff, ti, tf, t));
-// }
-
-// VectorXd EllipticPathTrajectory::getPoseVec(double t)
-// {
-//     return getPose(t).vecRep();
-// }
-
-// VectorXd EllipticPathTrajectory::getVel(double t)
-// {
-//     VectorXd vel(6);
-//     s = TrajPlan::qPol(sCoeff, t);
-//     ds = TrajPlan::dqPol(sCoeff, t);
-//     vel.head(3) = trajVel(s, ds);
-//     vel.tail(3) = TrajPlan::wPol(orientCoeff, ti, tf, t);
-//     return vel;
-// }
-

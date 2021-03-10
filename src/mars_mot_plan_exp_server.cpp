@@ -20,7 +20,9 @@
 #include "mars_mot_plan/kinematics/MarsUR5.h"
 #include "mars_mot_plan/kinematics/Pose.h"
 #include "mars_mot_plan/traj_plan/TrajPlan.h"
-#include "mars_mot_plan/traj_plan/PoseIterTrajectory.h"
+#include "mars_mot_plan/traj_plan/LinePathTrajectory.h"
+#include "mars_mot_plan/traj_plan/EllipticPathTrajectory.h"
+#include "mars_mot_plan/traj_plan/LissajousPathTrajectory.h"
 #include "matplotlibcpp.h"
 #include <vector>
 
@@ -205,10 +207,18 @@ public:
             **************** Pose trajectory planning ****************
             **********************************************************
         */
-        std::cout << "Planing trajectory:" << endl;
-        desiredTraj = PoseIterTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                                         posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                                         0.0, tf);
+
+        // desiredTraj = PoseIterTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+        //                                  posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+        //                                  0.0, tf);
+
+        // Straight line path
+        // desiredTraj = new LinePathTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+        //                            posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+        //                            0.0, tf);
+
+        // Elliptic path
+        desiredTraj = new EllipticPathTrajectory(pose0, posef, 0.0, tf);
 
         /*
             **********************************************************
@@ -295,14 +305,14 @@ public:
             Wmatrix = Wjlim * WColElbow * WColWrist * invTq;
 
             // Compute the position and orientation error
-            poseError.push_back(Pose::pose_diff(desiredTraj.getPose(trajDuration), pose.at(k)));
+            poseError.push_back(Pose::pose_diff(desiredTraj->getPose(trajDuration), pose.at(k)));
 
             // Compute the particular and homogeneous solutions
             // particular solution
             JBar = robot.getJacobianBar();
             JBarW = JBar * Wmatrix;
             invJBarW = pinv(JBarW);
-            partSol = invJBarW * (desiredTraj.getVel(trajDuration) + wError * poseError.at(k));
+            partSol = invJBarW * (desiredTraj->getVel(trajDuration) + wError * poseError.at(k));
             partSol = Wmatrix * partSol;
 
             // Compute the step size transition
@@ -386,7 +396,7 @@ public:
         cout << "Trajectory duration: " << trajDuration << endl;
         cout << "Desired trajectory time: " << tf << endl;
 
-        VectorXd finalPoseError = Pose::pose_diff(desiredTraj.getPose(tf), pose.back());
+        VectorXd finalPoseError = Pose::pose_diff(desiredTraj->getPose(tf), pose.back());
         double finalPosErrorNorm = finalPoseError.head(3).norm();
         cout << "Final position error norm: " << finalPosErrorNorm << endl;
         cout << "Final orientation error norm: " << finalPoseError.tail(3).norm() << endl;
@@ -450,7 +460,7 @@ private:
     double trajDuration;
     // Variables to be calculated before motion planning
     Pose pose0, posef;
-    PoseIterTrajectory desiredTraj;
+    Trajectory *desiredTraj;
     // Step size trasition variables
     std::vector<double> stepVarCoeff;
     double stepTb1;

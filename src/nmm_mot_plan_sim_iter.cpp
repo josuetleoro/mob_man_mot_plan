@@ -2,7 +2,10 @@
 #include "mars_mot_plan/kinematics/Pose.h"
 #include "mars_mot_plan/traj_plan/TrajPlan.h"
 #include "mars_mot_plan/traj_plan/PoseTrajectory.h"
-#include "mars_mot_plan/traj_plan/EllipticPathTraj.h"
+#include "mars_mot_plan/traj_plan/LinePathTrajectory.h"
+#include "mars_mot_plan/traj_plan/EllipticPathTrajectory.h"
+#include "mars_mot_plan/traj_plan/LissajousPathTrajectory.h"
+#include "mars_mot_plan/traj_plan/CircleWavePathTrajectory.h"
 #include "matplotlibcpp.h"
 #include <vector>
 
@@ -22,6 +25,8 @@ using namespace Eigen;
 namespace plt = matplotlibcpp;
 
 std::vector<double> stepSizeTrans(double tf, double ts, double blendPerc);
+void plotTrajectory(const std::vector<Pose> &poses, const std::vector<VectorXd> &vels, const std::vector<double> &time);
+
 template <class MatT>
 Eigen::Matrix<typename MatT::Scalar, MatT::ColsAtCompileTime, MatT::RowsAtCompileTime>
 pinv(const MatT &mat, typename MatT::Scalar tolerance = typename MatT::Scalar{1e-4}); // choose appropriately
@@ -84,16 +89,40 @@ int main(int argc, char **argv)
         **********************************************************
     */
     high_resolution_clock::time_point start = high_resolution_clock::now();
-    EllipticPathTraj desiredTraj(pose0, posef, t0, tf, ts);
-    cout << "TrajPlan completed" << endl;
-    double N = desiredTraj.size();
+    Trajectory *desiredTraj;
+    
+    // Straight line path
+    // desiredTraj = new LinePathTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+    //                            posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+    //                            t0, tf);
 
+    // Elliptic path
+    // desiredTraj = new EllipticPathTrajectory(pose0, posef, t0, tf);
+
+    // Lissajous path
+    desiredTraj = new LissajousPathTrajectory(pose0, t0, tf, tf*0.125);
+    
+    double time_cur = 0;
+    std::vector<Pose> des_poses;
+    std::vector<VectorXd> des_vels;
+    std::vector<double> time;
+    while (time_cur < tf)
+    {
+        time.push_back(time_cur);
+        des_poses.push_back(desiredTraj->getPose(time_cur));
+        des_vels.push_back(desiredTraj->getVel(time_cur));
+        time_cur += ts;
+    }
     high_resolution_clock::time_point end = high_resolution_clock::now();
-
+    cout << "TrajPlan completed" << endl;
+    
+    double N = des_poses.size();
     //Compute the execution time in us
     double time_ns = (double)(duration_cast<nanoseconds>(end - start).count());
     cout << "TrajPlan number of poses: " << N << endl;
     cout << "TrajPlan execution time: " << time_ns / 1000000 << "ms" << endl;
+
+    // plotTrajectory(des_poses, des_vels, time);       
 
     /*
         **********************************************************
@@ -161,7 +190,7 @@ int main(int argc, char **argv)
 
     // Copy the initial values of the motion planning
     q.at(0) = q0;
-    xi.at(0) = desiredTraj.poseAt(0);
+    xi.at(0) = des_poses.at(0);
 
     MatrixXd JBar, JBarW, invJBarW, Wmatrix;
     VectorXd MMdP, UR5dP, dP;
@@ -208,14 +237,14 @@ int main(int argc, char **argv)
         cout << "pose_des: " << endl << desiredTraj.poseAt(k) << endl;*/
 
         // Compute the position and orientation error
-        poseError.at(k) = Pose::pose_diff(desiredTraj.poseAt(k), xi.at(k));
+        poseError.at(k) = Pose::pose_diff(des_poses.at(k), xi.at(k));
 
         // Compute the particular and homogeneous solutions
         // particular solution
         JBar = robot.getJacobianBar();
         JBarW = JBar * Wmatrix;
         invJBarW = pinv(JBarW);
-        partSol = invJBarW * (desiredTraj.velocitiesAt(k) + wError * poseError.at(k));
+        partSol = invJBarW * (des_vels.at(k) + wError * poseError.at(k));
         partSol = Wmatrix * partSol;
 
         // homogeneous solution
@@ -289,7 +318,7 @@ int main(int argc, char **argv)
     k = k - 1; // Final element for the obtained data
     // Show final position and orientation errors
     cout << "Desired final pos: " << endl
-         << desiredTraj.poseAt(k) << endl;
+         << des_poses.at(k) << endl;
     cout << "Obtained final pos: " << endl
          << xi.at(k) << endl;
     cout << "Final pos error: " << endl
@@ -351,8 +380,8 @@ int main(int argc, char **argv)
     }
     MatrixXd qlimits = robot.getJointLim();
     VectorXd dqlimits = robot.getJointVelLim();
-    vector<double>::const_iterator first = desiredTraj.getTrajTime().begin();
-    vector<double>::const_iterator last = desiredTraj.getTrajTime().begin() + NObt;
+    vector<double>::const_iterator first = time.begin();
+    vector<double>::const_iterator last = time.begin() + NObt;
     std::vector<double> timeObt(first, last);
     cout << "timeObt size:" << timeObt.size() << endl;
 
@@ -373,7 +402,6 @@ int main(int argc, char **argv)
         UR5manip.at(i) = UR5manip.at(i) / arm_manip_max;
     }   
     
-
     // Figure (1)
     // Manipulability plots
     plt::figure_size(1600, 900);
@@ -718,6 +746,17 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         cout << "z: " << eigen_quatf.z() << endl;
         tf = 20;
         break;
+    case 18: // Case for lissajous path
+        tx = -0.1092, ty = 0.5191, phi = -M_PI_2, tz = 0.2;
+        qa << 0, -80*deg2rad, 110*deg2rad, -120*deg2rad, -90*deg2rad, 0.0;
+        pos_des << 1.3, -1.3, 1.2;
+        eigen_quatf = Quaterniond(0,1,0,0);
+        cout << "w: " << eigen_quatf.w() << endl;
+        cout << "x: " << eigen_quatf.x() << endl;
+        cout << "y: " << eigen_quatf.y() << endl;
+        cout << "z: " << eigen_quatf.z() << endl;
+        tf = 78;
+        break;
     default:
         break;
     }
@@ -726,4 +765,99 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
     q << tx, ty, phi, tz, qa;
     // Store desired pose in the posef object
     posef = Pose(pos_des, Quat(eigen_quatf));
+}
+
+void plotTrajectory(const std::vector<Pose> &poses, const std::vector<VectorXd> &vels, const std::vector<double> &time)
+{
+    // Separate the data
+    int N = poses.size();
+    std::vector<double> x, y, z, vx, vy, vz, qw, qx, qy, qz, wx, wy, wz;
+    for (int i = 0; i < N; i++)
+    {
+        x.push_back(poses.at(i).getPos()(0));
+        y.push_back(poses.at(i).getPos()(1));
+        z.push_back(poses.at(i).getPos()(2));
+        vx.push_back(vels.at(i)(0));
+        vy.push_back(vels.at(i)(1));
+        vz.push_back(vels.at(i)(2));
+        qw.push_back(poses.at(i).getOrientation().w);
+        qx.push_back(poses.at(i).getOrientation().x);
+        qy.push_back(poses.at(i).getOrientation().y);
+        qz.push_back(poses.at(i).getOrientation().z);
+        wx.push_back(vels.at(i)(3));
+        wx.push_back(vels.at(i)(4));
+        wx.push_back(vels.at(i)(5));
+    }
+
+    // Plot the obtained trajectory
+    // Path plot    
+    plt::figure(1);
+    plt::subplot(2, 1, 1);
+    plt::named_plot("XY", x, y);
+    plt::xlabel("X(m)");
+    plt::ylabel("Y(m)");
+    plt::grid(true);
+    plt::subplot(2, 1, 2);
+    plt::named_plot("Z", time, z);
+    plt::xlabel("time(s)");
+    plt::ylabel("Z(m)");
+    plt::grid(true);
+
+    // Plot position and velocities
+    plt::figure(2);
+    plt::suptitle("Position");
+    plt::subplot(3, 2, 1);
+    plt::plot(time, x);
+    plt::ylabel("x");
+    plt::xlabel("time");
+    plt::grid(true);
+    plt::subplot(3, 2, 2);
+    plt::plot(time, vx);
+    plt::ylabel("dx");
+    plt::xlabel("time");
+    plt::grid(true);
+
+    plt::subplot(3, 2, 3);
+    plt::plot(time, vy);
+    plt::ylabel("y");
+    plt::xlabel("time");
+    plt::grid(true);
+    plt::subplot(3, 2, 4);
+    plt::plot(time, vy);
+    plt::ylabel("dy");
+    plt::xlabel("time");
+    plt::grid(true);
+
+    plt::subplot(3, 2, 5);
+    plt::plot(time, z);
+    plt::ylabel("z");
+    plt::xlabel("time");
+    plt::grid(true);
+    plt::subplot(3, 2, 6);
+    plt::plot(time, vz);
+    plt::ylabel("dz");
+    plt::xlabel("time");
+    plt::grid(true);
+
+    // Plot orientation
+    plt::figure(4);
+    plt::suptitle("Orientation(quaternion)");
+    plt::subplot(2, 2, 1);
+    plt::plot(time, qw);
+    plt::ylabel("qw");
+    plt::grid(true);
+    plt::subplot(2, 2, 2);
+    plt::plot(time, qx);
+    plt::ylabel("qx");
+    plt::grid(true);
+    plt::subplot(2, 2, 3);
+    plt::plot(time, qy);
+    plt::ylabel("qy");
+    plt::grid(true);
+    plt::subplot(2, 2, 4);
+    plt::plot(time, qz);
+    plt::ylabel("qz");
+    plt::grid(true);
+    plt::xlabel("time");
+    plt::show();
 }
