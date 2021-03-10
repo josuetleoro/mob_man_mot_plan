@@ -20,9 +20,7 @@
 #include "mars_mot_plan/kinematics/MarsUR5.h"
 #include "mars_mot_plan/kinematics/Pose.h"
 #include "mars_mot_plan/traj_plan/TrajPlan.h"
-#include "mars_mot_plan/traj_plan/LinePathTrajectory.h"
-#include "mars_mot_plan/traj_plan/EllipticPathTrajectory.h"
-#include "mars_mot_plan/traj_plan/LissajousPathTrajectory.h"
+#include "mars_mot_plan/traj_plan/PoseIterTrajectory.h"
 #include "matplotlibcpp.h"
 #include <vector>
 
@@ -69,6 +67,26 @@ public:
         ur_script_pub = nh_.advertise<std_msgs::String>("/ur_driver/URScript", 10);
         ur5_accel = 2.0, ur5_speedj_time = 0.5;
 
+        // Wait for tf from world to base_footprint
+        bool tf_read = false;
+        while (!tf_read)
+        {
+            try
+            {
+                listener.waitForTransform("/vive_world", "/base_footprint",
+                                           ros::Time(0), ros::Duration(0.2));
+                listener.lookupTransform("/vive_world", "/base_footprint",
+                                           ros::Time(0), mob_plat_base_transform);
+                tf_read = true;
+            }   
+            catch (tf::TransformException ex)
+            {
+                ROS_WARN("Transform from frame vive_world to base_footprint not available yet");
+                tf_read = false;
+                break;
+            }
+        }
+
         as.start();
         ROS_INFO_STREAM("Mars motion planning action server started");
         ros::SubscribeOptions ops =
@@ -109,9 +127,22 @@ public:
         // Store the current joint positions
         mutex.lock();
         // Calculate the mobile platform position based on odometry
-        x += jointStateTs * linVel * cos(phi);
+        /* x += jointStateTs * linVel * cos(phi);
         y += jointStateTs * linVel * sin(phi);
-        phi += jointStateTs * angVel;
+        phi += jointStateTs * angVel;*/
+        try
+        {
+            listener.lookupTransform("/vive_world", "/base_footprint",
+                                     ros::Time(0), mob_plat_base_transform);
+        }
+        catch (tf::TransformException ex)
+        {
+            ROS_WARN("Transform from frame vive_world to base_footprint not available yet");
+        }
+        x = mob_plat_base_transform.getOrigin().x();
+        y = mob_plat_base_transform.getOrigin().y();
+        phi = tf::getYaw(mob_plat_base_transform.getRotation());        
+
         //cout << "mob_plat_pos: " << x << ", " << y << ", "<< phi << endl;
         currJointPos << x, y, phi, joint_pos.at(2),
             joint_pos.at(3), joint_pos.at(4), joint_pos.at(5),
@@ -207,18 +238,10 @@ public:
             **************** Pose trajectory planning ****************
             **********************************************************
         */
-
-        // desiredTraj = PoseIterTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-        //                                  posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-        //                                  0.0, tf);
-
-        // Straight line path
-        // desiredTraj = new LinePathTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-        //                            posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-        //                            0.0, tf);
-
-        // Elliptic path
-        desiredTraj = new EllipticPathTrajectory(pose0, posef, 0.0, tf);
+        std::cout << "Planing trajectory:" << endl;
+        desiredTraj = PoseIterTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+                                         posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
+                                         0.0, tf);
 
         /*
             **********************************************************
@@ -305,14 +328,14 @@ public:
             Wmatrix = Wjlim * WColElbow * WColWrist * invTq;
 
             // Compute the position and orientation error
-            poseError.push_back(Pose::pose_diff(desiredTraj->getPose(trajDuration), pose.at(k)));
+            poseError.push_back(Pose::pose_diff(desiredTraj.getPose(trajDuration), pose.at(k)));
 
             // Compute the particular and homogeneous solutions
             // particular solution
             JBar = robot.getJacobianBar();
             JBarW = JBar * Wmatrix;
             invJBarW = pinv(JBarW);
-            partSol = invJBarW * (desiredTraj->getVel(trajDuration) + wError * poseError.at(k));
+            partSol = invJBarW * (desiredTraj.getVel(trajDuration) + wError * poseError.at(k));
             partSol = Wmatrix * partSol;
 
             // Compute the step size transition
@@ -396,7 +419,7 @@ public:
         cout << "Trajectory duration: " << trajDuration << endl;
         cout << "Desired trajectory time: " << tf << endl;
 
-        VectorXd finalPoseError = Pose::pose_diff(desiredTraj->getPose(tf), pose.back());
+        VectorXd finalPoseError = Pose::pose_diff(desiredTraj.getPose(tf), pose.back());
         double finalPosErrorNorm = finalPoseError.head(3).norm();
         cout << "Final position error norm: " << finalPosErrorNorm << endl;
         cout << "Final orientation error norm: " << finalPoseError.tail(3).norm() << endl;
@@ -460,7 +483,7 @@ private:
     double trajDuration;
     // Variables to be calculated before motion planning
     Pose pose0, posef;
-    Trajectory *desiredTraj;
+    PoseIterTrajectory desiredTraj;
     // Step size trasition variables
     std::vector<double> stepVarCoeff;
     double stepTb1;
