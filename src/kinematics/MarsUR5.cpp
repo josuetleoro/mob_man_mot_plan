@@ -3,6 +3,7 @@
 
 #define _USE_MATH_DEFINES // for the PI constant
 #include <math.h>
+#include <numeric>
 using namespace std;
 using namespace Eigen;
 
@@ -76,8 +77,27 @@ MarsUR5::MarsUR5()
     qlimits(6,0) = -2*M_PI; qlimits(6,1) = 2*M_PI;
     qlimits(7,0) = -2*M_PI; qlimits(7,1) = 2*M_PI;
     qlimits(8,0) = -2*M_PI; qlimits(8,1) = 2*M_PI;
-    jLimBeta = 50;
+    jLimBeta = 5;
     prevGradHJLim = VectorXd::Zero(9);
+    gradPDif = VectorXd::Zero(9);
+    
+    // Initialize circular buffers for filters
+    gradHJLimBuffer.resize(9);
+    gradPElbowBuffer.resize(9);
+    gradPWristBuffer.resize(9);
+    PHY_CONST_FILTER_WINDOW_SIZE = 5;
+    for (int i = 0; i < 9; i++)
+    {
+        gradHJLimBuffer.at(i).resize(PHY_CONST_FILTER_WINDOW_SIZE);
+        gradPElbowBuffer.at(i).resize(PHY_CONST_FILTER_WINDOW_SIZE);
+        gradPWristBuffer.at(i).resize(PHY_CONST_FILTER_WINDOW_SIZE);
+        for (int j = 0; j < PHY_CONST_FILTER_WINDOW_SIZE; j++)
+        {
+            gradHJLimBuffer.at(i).at(j) = 0.0;
+            gradPElbowBuffer.at(i).at(j) = 0.0;
+            gradPWristBuffer.at(i).at(j) = 0.0;
+        }
+    }
 
     // Initialize the variables for self-collision avoidance
     elbowSafeDist = 0.61; wristSafeDist = 0.35;
@@ -202,27 +222,50 @@ void MarsUR5::getJLimWeight(MatrixXd &wJLim)
     {
         // q(i + 1) is used because we have 9 joint limits for the reduced coordiantes
         // but 10 joints for the generalized coordinates
-        gradH = abs(pow(qlimits(i, 1) - qlimits(i, 0), 2) * (2 * q(i + 1) - qlimits(i, 1) - qlimits(i, 0)) / (4 * pow(qlimits(i, 1) - q(i + 1), 2) * pow(q(i + 1) - qlimits(i, 0), 2))) / jLimBeta;
-        gradHDif = gradH - prevGradHJLim(i);
 
-        /*cout << "i: " << i << endl;
-        cout << "q: " << q.transpose() << endl;
-        cout << "q(i+1): " << q(i+1) << endl;
-        cout << "gradH: " << gradH << endl;
-        cout << "gradHDif: " << gradHDif << endl;
-        cout << "qlimit_low: " << qlimits(i, 0) << endl;
-        cout << "qlimit_high: " << qlimits(i, 1) << endl;
-        cout << endl;*/
+        // Set a different beta for the prismatic joint
+        if (i == 2) // Prismatic joint
+            jLimBeta = 50;
+        else
+            jLimBeta = 5;
+
+        gradH = abs(pow(qlimits(i, 1) - qlimits(i, 0), 2) * (2 * q(i + 1) - qlimits(i, 1) - qlimits(i, 0)) / (4 * pow(qlimits(i, 1) - q(i + 1), 2) * pow(q(i + 1) - qlimits(i, 0), 2))) / jLimBeta;
+
+        // Filter gradH to avoid vibrations near the joint limits
+        gradHJLimBuffer.at(i).push_back(gradH);
+        filter_average = std::accumulate(gradHJLimBuffer.at(i).begin(), gradHJLimBuffer.at(i).end(), 0.0)/5.0;
+        gradH = filter_average;
+
+        gradHDif = gradH - prevGradHJLim(i);
+        // if (q(i + 1) <= qlimits(i, 0) || q(i + 1) >= qlimits(i,1))
+        // {
+        //     cout << "Joint is out of limits" << endl;
+        //     cout << "gradH: " << gradH << endl;
+        //     cout << "gradHDif: " << gradHDif << endl;
+        // }
+
+        // //? Clamp the joint when at the limits
+        // if (q(i + 1) <= qlimits(i, 0) || q(i + 1) >= qlimits(i,1))
+        // {
+        // 
+        // }
 
         prevGradHJLim(i) = gradH;
         if (gradHDif >= 0)
         //if (gradHDif > -1e-2)
 	    {
-            wJLim(i, i) = 1 / sqrt(1 + gradH);
-	        if (wJLim(i, i) < 1e-2)
-	        {
+            if (gradH == Infinity)
+            {
                 wJLim(i, i) = 0;
-	        }
+            }
+            else
+            {
+                wJLim(i, i) = 1 / sqrt(1 + gradH);
+	            if (wJLim(i, i) < 1e-2)
+	            {
+                    wJLim(i, i) = 0;
+	            }            
+            }
 	    }
         else
             wJLim(i, i) = 1;
@@ -248,10 +291,17 @@ void MarsUR5::getElbowColWeight(double rho, double alpha, double beta, MatrixXd 
     deltad_deltaq = 1.0/dist*(JElbow.transpose()*pa_pb);
     deltaP_deltad=-1*rho*exp(-1*alpha*dist)*pow(dist,-1*beta)*(beta/dist+alpha);
     gradPElbow = (deltaP_deltad*deltad_deltaq).cwiseAbs();
-    gradPDif = gradPElbow - prevGradPElbow;
-    //cout << "gradPElbow:" << endl << gradPElbow.transpose() << endl;
+
     for (int i = 2; i < 5; i++)
     {
+        // Filter gradPElbow to avoid vibrations near the joint limits
+        gradPElbowBuffer.at(i).push_back(gradPElbow(i));
+        filter_average = std::accumulate(gradPElbowBuffer.at(i).begin(), gradPElbowBuffer.at(i).end(), 0.0)/PHY_CONST_FILTER_WINDOW_SIZE;
+        gradPElbow(i) = filter_average;
+
+        gradPDif(i) = gradPElbow(i) - prevGradPElbow(i);
+        //cout << "gradPElbow:" << endl << gradPElbow.transpose() << endl;
+
         if (gradPDif(i) >= 0)
         //if (gradPDif(i) > -1e-2)
         {
@@ -294,12 +344,18 @@ void MarsUR5::getWristColWeight(double rho, double alpha, double beta, MatrixXd 
     deltad_deltaq = 1.0/dist*(JWrist.transpose()*pa_pb);
     deltaP_deltad=-1*rho*exp(-1*alpha*dist)*pow(dist,-1*beta)*(beta/dist+alpha);
     gradPWrist = (deltaP_deltad*deltad_deltaq).cwiseAbs();
-    gradPDif = gradPWrist - prevGradPWrist;
-    //cout << "gradPWrist:" << endl << gradPWrist.transpose() << endl;
+
     for (int i = 3; i < 6; i++)
     {
+        // Filter gradPElbow to avoid vibrations near the joint limits
+        gradPWristBuffer.at(i).push_back(gradPWrist(i));
+        filter_average = std::accumulate(gradPWristBuffer.at(i).begin(), gradPWristBuffer.at(i).end(), 0.0)/PHY_CONST_FILTER_WINDOW_SIZE;
+        gradPWrist(i) = filter_average;
+
+        gradPDif(i) = gradPWrist(i) - prevGradPWrist(i);
+        //cout << "gradPWrist:" << endl << gradPWrist.transpose() << endl;
+
         if (gradPDif(i) >= 0)
-        //if (gradPDif(i) > -1e-2)
         {
             wColWrist(i,i) = 1/sqrt(1 + gradPWrist(i));
             if (wColWrist(i,i) < 1e-2)
@@ -338,11 +394,6 @@ MatrixXd MarsUR5::getVelsNormMatrix()
     for (int i = 0; i < 9; i++)
     {
         invTq(i, i) = sqrt(dqlimits(i));
-        /*if (invTq(i,i) > max)
-        {
-            max = invTq(i, i);
-        }*/
     }
-    //invTq = invTq / max;
     return invTq;
 }

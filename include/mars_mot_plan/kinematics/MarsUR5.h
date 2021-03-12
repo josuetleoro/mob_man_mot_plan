@@ -4,7 +4,9 @@
 #include <math.h>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
+#include <boost/circular_buffer.hpp>
 #include "mars_mot_plan/kinematics/DualQuat.h"
+#include <vector>
 using namespace std;
 
 class MarsUR5
@@ -62,10 +64,14 @@ private:
 	VectorXd prevGradHJLim, prevGradPElbow, prevGradPWrist;
 	VectorXd gradPElbow, gradPWrist;
 	double gradH, jLimBeta;
+
+	int PHY_CONST_FILTER_WINDOW_SIZE;
+	double filter_average;
+	std::vector<boost::circular_buffer<double>> gradHJLimBuffer, gradPElbowBuffer, gradPWristBuffer;
 	double elbowPosZ, elbowSafeDist, wristSafeDist;
 	VectorXd JElbow, JWrist;
 	double deltaP_deltad;
-	VectorXd deltad_deltaq, gradPDif;	// Auxiliar variables for gradient calculation
+	VectorXd deltad_deltaq, gradPDif;	// Auxiliar variables for gradient calculation	
 
 	// For joint velocities limit avoidance
 	VectorXd dqlimits;
