@@ -97,15 +97,15 @@ int main(int argc, char **argv)
     //                            t0, tf);
 
     // Elliptic path
-    desiredTraj = new EllipticPathTrajectory(pose0, posef, t0, tf);
+    // desiredTraj = new EllipticPathTrajectory(pose0, posef, t0, tf);
 
     // Lissajous path
     // desiredTraj = new LissajousPathTrajectory(pose0, t0, tf, tf*0.125);
 
     // Sine wave path
     //! For sine wave we need to use the arm alone
-    desiredTraj = new SineWavePathTrajectory(pose0, t0, tf, tf*0.125, 3.5, 4, 0.5);
-    alpha = 8.0;
+    desiredTraj = new SineWavePathTrajectory(pose0, t0, tf, tf*0.16, 3.5, 3, 0.4);
+    alpha = 2.0;
     
     double time_cur = 0;
     std::vector<Pose> des_poses;
@@ -216,8 +216,11 @@ int main(int argc, char **argv)
 
         // Compute the manipulability gradients
         robot.getManipGrads(MMdP, MMman, UR5dP, UR5man);
-        dP = UR5man * MMdP + MMman * UR5dP;
+        // dP = UR5man * MMdP + MMman * UR5dP;
+        //! For sine wave we need to use the arm alone
+        dP = UR5dP;
         dP = S.transpose() * dP;
+
         wMeasure.at(k) = MMman * UR5man;
         MMmanip.at(k) = MMman;
         UR5manip.at(k) = UR5man;
@@ -763,7 +766,7 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << -80*deg2rad, -45*deg2rad, 90*deg2rad, 150*deg2rad, -100*deg2rad, 0.0;
         pos_des << 1.3, -1.3, 1.2;
         eigen_quatf = Quaterniond(0,1,0,0);        
-        tf = 30;
+        tf = 35;
         break;
     default:
         break;

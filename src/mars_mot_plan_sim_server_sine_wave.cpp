@@ -16,6 +16,7 @@
 #include "mars_mot_plan/traj_plan/LinePathTrajectory.h"
 #include "mars_mot_plan/traj_plan/EllipticPathTrajectory.h"
 #include "mars_mot_plan/traj_plan/LissajousPathTrajectory.h"
+#include "mars_mot_plan/traj_plan/SineWavePathTrajectory.h"
 #include "matplotlibcpp.h"
 #include <vector>
 
@@ -32,7 +33,7 @@ public:
                                               action_name(name)
     {
         freq = 50.0;
-        alpha = 3;
+        alpha = 2;
         KpPos = 10;
         KpOr = 20;
 
@@ -119,31 +120,9 @@ public:
                   << endl;
         std::cout << "Trajectory time: " << tf << endl;
         
-        switch (goal->pathType)
+        if (goal->pathType != mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_CLOSED_PATH)
         {
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_LINE:
-            std::cout << "Path type: straight line" << endl;
-            posef = Pose(goal->desPose);
-            std::cout << "Tf:" << endl
-                << posef.matrixRep() << endl;
-            std::cout << "Posef:" << endl
-                  << posef << endl
-                  << endl;
-            break;
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_ELLIPTICAL:
-            std::cout << "Path type: elliptical path" << endl;
-            posef = Pose(goal->desPose);
-            std::cout << "Tf:" << endl
-                << posef.matrixRep() << endl;
-            std::cout << "Posef:" << endl
-                  << posef << endl
-                  << endl;
-            break;
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_CLOSED_PATH:
-            std::cout << "Path type: lissajous path" << endl;
-            break;
-        default:
-            ROS_ERROR("Invalid path type received.");
+            ROS_ERROR("Invalid path type received. Only closed path type is valid for circle trajectory.");
             as.setAborted();
             return;
         }
@@ -155,25 +134,7 @@ public:
         */
 
         std::cout << "Planing trajectory:" << endl;
-        // Select the type of path
-        switch (goal->pathType)
-        {
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_LINE:
-            desiredTraj = new LinePathTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                                   posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
-                                   0.0, tf);
-            break;
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_ELLIPTICAL:
-            desiredTraj = new EllipticPathTrajectory(pose0, posef, 0.0, tf);
-            break;
-        case mars_mot_plan::PoseTrajectoryGoal::PATH_TYPE_CLOSED_PATH:
-            desiredTraj = new LissajousPathTrajectory(pose0, 0.0, tf, tf*0.125);
-            break;
-        default:
-            ROS_ERROR("Trajectory planning failed, invalid path type received.");
-            as.setAborted();
-            return;
-        }
+        desiredTraj = new SineWavePathTrajectory(pose0, 0.0, tf, tf*0.125, 3.5, 3, 0.4);        
 
         // desiredTraj = PoseIterTrajectory(pose0, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
         //                                  posef, Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(), Vector3d::Zero(),
@@ -243,8 +204,8 @@ public:
 
             // Compute the manipulability gradients
             robot.getManipGrads(MMdP, MMman, UR5dP, UR5man);
-            dP = UR5man * MMdP + MMman * UR5dP;
-            dP = S.transpose() * dP;
+            dP = UR5dP;
+            dP = S.transpose() * dP;            
             wMeasure.push_back(MMman * UR5man);
             MMmanip.push_back(MMman);
             UR5manip.push_back(UR5man);

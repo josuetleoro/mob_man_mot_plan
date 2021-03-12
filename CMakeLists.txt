@@ -119,6 +119,11 @@ target_include_directories(mars_mot_plan_sim_server_circle_node PRIVATE ${PYTHON
 target_link_libraries(mars_mot_plan_sim_server_circle_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
 add_dependencies(mars_mot_plan_sim_server_circle_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
 
+add_executable(mars_mot_plan_sim_server_sine_wave_node src/mars_mot_plan_sim_server_sine_wave.cpp ${SOURCE_FILES})
+target_include_directories(mars_mot_plan_sim_server_sine_wave_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(mars_mot_plan_sim_server_sine_wave_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(mars_mot_plan_sim_server_sine_wave_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
+
 ## Experimental node using odometry feedback
 add_executable(mars_mot_plan_exp_server_node src/mars_mot_plan_exp_server.cpp ${SOURCE_FILES})
 target_include_directories(mars_mot_plan_exp_server_node PRIVATE ${PYTHON_INCLUDE_DIRS})
@@ -136,6 +141,12 @@ add_executable(mars_mot_plan_exp_server_circle_node src/mars_mot_plan_exp_server
 target_include_directories(mars_mot_plan_exp_server_circle_node PRIVATE ${PYTHON_INCLUDE_DIRS})
 target_link_libraries(mars_mot_plan_exp_server_circle_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
 add_dependencies(mars_mot_plan_exp_server_circle_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
+
+# Experimental node for sine wave path
+add_executable(mars_mot_plan_exp_server_sine_wave_node src/mars_mot_plan_exp_server_sine_wave.cpp ${SOURCE_FILES})
+target_include_directories(mars_mot_plan_exp_server_sine_wave_node PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(mars_mot_plan_exp_server_sine_wave_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(mars_mot_plan_exp_server_sine_wave_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} mars_mot_plan_generate_messages_cpp)
 
 add_executable(ee_goal_marker_node src/ee_goal_marker.cpp)
 target_link_libraries(ee_goal_marker_node ${catkin_LIBRARIES})
