@@ -86,6 +86,7 @@ set(SOURCE_FILES
   src/traj_plan/EllipticPathTrajectory.cpp
   src/traj_plan/LissajousPathTrajectory.cpp
   src/traj_plan/CircleWavePathTrajectory.cpp
+  src/traj_plan/SineWavePathTrajectory.cpp
 )
 
 add_executable(mobman_mot_plan_sim_node src/mobman_mot_plan_sim.cpp ${SOURCE_FILES})

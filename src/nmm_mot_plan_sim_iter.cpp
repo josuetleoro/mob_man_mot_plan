@@ -5,7 +5,7 @@
 #include "mars_mot_plan/traj_plan/LinePathTrajectory.h"
 #include "mars_mot_plan/traj_plan/EllipticPathTrajectory.h"
 #include "mars_mot_plan/traj_plan/LissajousPathTrajectory.h"
-#include "mars_mot_plan/traj_plan/CircleWavePathTrajectory.h"
+#include "mars_mot_plan/traj_plan/SineWavePathTrajectory.h"
 #include "matplotlibcpp.h"
 #include <vector>
 
@@ -101,6 +101,11 @@ int main(int argc, char **argv)
 
     // Lissajous path
     // desiredTraj = new LissajousPathTrajectory(pose0, t0, tf, tf*0.125);
+
+    // Sine wave path
+    //! For sine wave we need to use the arm alone
+    desiredTraj = new SineWavePathTrajectory(pose0, t0, tf, tf*0.125, 3.5, 4, 0.5);
+    alpha = 8.0;
     
     double time_cur = 0;
     std::vector<Pose> des_poses;
@@ -122,7 +127,7 @@ int main(int argc, char **argv)
     cout << "TrajPlan number of poses: " << N << endl;
     cout << "TrajPlan execution time: " << time_ns / 1000000 << "ms" << endl;
 
-    // plotTrajectory(des_poses, des_vels, time);       
+    plotTrajectory(des_poses, des_vels, time);       
 
     /*
         **********************************************************
@@ -751,11 +756,14 @@ void testPointsMaxLinVel(int testN, VectorXd &q, Pose &posef, double &tf)
         qa << 0, -80*deg2rad, 110*deg2rad, -120*deg2rad, -90*deg2rad, 0.0;
         pos_des << 1.3, -1.3, 1.2;
         eigen_quatf = Quaterniond(0,1,0,0);
-        cout << "w: " << eigen_quatf.w() << endl;
-        cout << "x: " << eigen_quatf.x() << endl;
-        cout << "y: " << eigen_quatf.y() << endl;
-        cout << "z: " << eigen_quatf.z() << endl;
         tf = 78;
+        break;
+    case 19: // Case for sine wave path
+        tx = 0.779, ty = -1.345, phi = 0, tz = 0.2;
+        qa << -80*deg2rad, -45*deg2rad, 90*deg2rad, 150*deg2rad, -100*deg2rad, 0.0;
+        pos_des << 1.3, -1.3, 1.2;
+        eigen_quatf = Quaterniond(0,1,0,0);        
+        tf = 30;
         break;
     default:
         break;
