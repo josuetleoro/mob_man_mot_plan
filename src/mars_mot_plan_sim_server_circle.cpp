@@ -131,7 +131,7 @@ public:
         */
 
         std::cout << "Planing trajectory:" << endl;
-        desiredTraj = CirclePathTrajectory(pose0, 0.0, tf, tf*0.125, 1.6, 0.25, 4);
+        desiredTraj = CirclePathTrajectory(pose0, 0.0, tf, tf*0.125, pose0.position(0), 0.25, 4);
         
         /*
             **********************************************************
@@ -271,7 +271,7 @@ public:
         cout << "trajDuration: " << trajDuration << endl;
         cout << "Time diff: " << finalTimeDiff << endl;
 
-        if (abs(finalTimeDiff) < 1e-3)
+        if (abs(finalTimeDiff) <= 1.5*ts)
         {
             std::cout << "Motion planning completed. Number of iterations: " << k << endl;
             ROS_INFO("%s: Succeeded", action_name.c_str());

@@ -2,7 +2,7 @@
     <!-- Run on PC -->
 
     <!-- sim server node -->
-    <node pkg="mars_mot_plan" type="mars_mot_plan_sim_server_node" name="mars_mot_plan_sim_server" output="screen"/>   
+    <node pkg="mars_mot_plan" type="mars_mot_plan_sim_server_circle_node" name="mars_mot_plan_sim_server" output="screen"/>   
 
     <!-- end effector interactive goal marker -->
     <!-- <node pkg="mars_mot_plan" type="ee_goal_marker_node" name="ee_goal_marker_node">

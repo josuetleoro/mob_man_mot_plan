@@ -322,7 +322,7 @@ public:
         cout << "trajDuration: " << trajDuration << endl;
         cout << "Time diff: " << finalTimeDiff << endl;
 
-        if (abs(finalTimeDiff) < 1e-3)
+        if (abs(finalTimeDiff) <= 1.5*ts)
         {
             std::cout << "Motion planning completed. Number of iterations: " << k << endl;
             ROS_INFO("%s: Succeeded", action_name.c_str());
