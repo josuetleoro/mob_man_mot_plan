@@ -32,7 +32,7 @@ public:
                                               action_name(name)
     {
         freq = 50.0;
-        alpha = 8;
+        alpha = 2;
         KpPos = 10;
         KpOr = 20;
 

@@ -179,7 +179,7 @@ void MarsUR5::getManipGrads(VectorXd &MMdP, double &MMmanip, VectorXd &UR5dP, do
     // Manipulability and gradient of JBar
     JBart = JBar.transpose();
     JJt = JBar*JBart;
-    w = sqrt(JJt.determinant());
+    w = sqrt(JJt.determinant())/2.6141; // Divide by the maximum mm manipulability
     double w_2 = w/2.0;
     inv_JJt = JJt.inverse();
     MMmanip = w;
@@ -198,7 +198,7 @@ void MarsUR5::getManipGrads(VectorXd &MMdP, double &MMmanip, VectorXd &UR5dP, do
     MMdP = dP;
 
     // Manipulability and gradient of Ja
-    wa = abs(Ja.determinant());
+    wa = abs(Ja.determinant())/0.1198;  // Divide by the maximum arm manipulability
     inv_Ja = Ja.inverse();
     UR5manip = wa;
     dpAux = inv_Ja*dJadq5;

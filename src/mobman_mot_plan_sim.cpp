@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 
     // Algorithm parameters
     double t0 = 0, ts = 1 / 50.0;
-    double alpha = 20;
+    double alpha = 2;
     double KpPos = 10, KpOr = 20;
 
     // Get the initial joint states and desired final pose

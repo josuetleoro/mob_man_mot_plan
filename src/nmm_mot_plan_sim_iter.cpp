@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 
     // Algorithm parameters
     double t0 = 0, ts = 1 / 50.0;
-    double alpha = 10;
+    double alpha = 2;
     double KpPos = 10, KpOr = 20;
 
     // Get the initial joint states and desired final pose
@@ -97,10 +97,10 @@ int main(int argc, char **argv)
     //                            t0, tf);
 
     // Elliptic path
-    // desiredTraj = new EllipticPathTrajectory(pose0, posef, t0, tf);
+    desiredTraj = new EllipticPathTrajectory(pose0, posef, t0, tf);
 
     // Lissajous path
-    desiredTraj = new LissajousPathTrajectory(pose0, t0, tf, tf*0.125);
+    // desiredTraj = new LissajousPathTrajectory(pose0, t0, tf, tf*0.125);
     
     double time_cur = 0;
     std::vector<Pose> des_poses;
