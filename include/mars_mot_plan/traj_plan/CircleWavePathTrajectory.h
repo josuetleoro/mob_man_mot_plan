@@ -16,7 +16,7 @@ class CirclePathTrajectory
 protected:
     double ti, tf;
     Pose posei, posef;
-    Vector3d orienti;
+    Vector3d orienti, normali;
     // Path parameters
     double radius, z_height, z_freq;
     Vector3d target;

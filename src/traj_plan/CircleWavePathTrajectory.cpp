@@ -17,7 +17,7 @@ CirclePathTrajectory::CirclePathTrajectory(Pose posei, double ti, double tf, dou
 {
     this->ti = ti;
     this->tf = tf;
-    this->posei = posei; this->posef = posef;
+    this->posei = posei;
 
     // Parameters that define the size of circle path
     this->radius = radius;
@@ -45,13 +45,19 @@ CirclePathTrajectory::CirclePathTrajectory(Pose posei, double ti, double tf, dou
     Eigen::Quaterniond quat_i_eigen(quati.w, quati.x, quati.y, quati.z);
     Matrix3d R = quat_i_eigen.toRotationMatrix();
     cout << "Ri: " << endl << R << endl;
-    orienti = R.col(1);
-    cout << "orienti: " << orienti.transpose() << endl;
+    normali = R.col(0);
+    // cout << "orienti: " << orienti.transpose() << endl;
+    cout << "normali: " << normali.transpose() << endl;
 
     // The orientation direction points to the center of the circle
-    target = Vector3d(posei.position(0), posei.position(1), 0)-Vector3d(radius, 0, 0);
+    target = Vector3d(posei.position(0) - radius, posei.position(1), 0);
     // It is assumed the approach direction points down
     approach = Vector3d(0,0,-1);
+
+    // Find the final pose
+    Vector3d posf = trajPos(tf);
+    Quat orientf = trajOrient(tf);
+    posef = Pose(posf, orientf);
 }
 
 void CirclePathTrajectory::validateTime(double t)
@@ -115,6 +121,11 @@ double CirclePathTrajectory::getDsAtTime(double t)
 
 Vector3d CirclePathTrajectory::trajPos(double t)
 {
+    if (t > tf)
+    {
+        return posef.getPos();
+    }
+
     s = getSAtTime(t);
     Vector3d pos;
     pos(0) = posei.position(0) + radius*cos(s)-radius;
@@ -125,6 +136,11 @@ Vector3d CirclePathTrajectory::trajPos(double t)
 
 Vector3d CirclePathTrajectory::trajLinVel(double t)
 {
+    if (t > tf)
+    {
+        return Vector3d::Zero();
+    }
+
     s = getSAtTime(t);
     ds = getDsAtTime(t);
     Vector3d vel;
@@ -136,16 +152,21 @@ Vector3d CirclePathTrajectory::trajLinVel(double t)
 
 Quat CirclePathTrajectory::trajOrient(double t)
 {
+    if (t > tf)
+    {
+        return posef.getOrientation();
+    }
+
     // The orientation direction points to the center of the circle
     Eigen::Matrix3d R = Eigen::Matrix3d::Zero();
     Vector3d pos = trajPos(t);
-    Vector3d orient = target - Vector3d(pos(0), pos(1), 0);
-    if (orient.norm() < 1e-04)
+    Vector3d normal = Vector3d(pos(0), pos(1), 0) - target;
+    if (normal.norm() < 1e-04)
     {
-        orient = orienti;
+        normal = normali;
     }
-    orient.normalize();
-    Vector3d normal = orient.cross(approach);
+    normal.normalize();
+    Vector3d orient = approach.cross(normal);
     R.col(0) = normal;
     R.col(1) = orient;
     R.col(2) = approach;
@@ -154,6 +175,11 @@ Quat CirclePathTrajectory::trajOrient(double t)
 
 Vector3d CirclePathTrajectory::trajAngVel(double t, double ts, const Quat &quat_prev)
 {
+    if (t > tf)
+    {
+        return Vector3d::Zero();
+    }
+
     Vector3d vel(0, 0, 0);
     if (t > ts) // The first angular velocity is zero, i.e. t <= ts
     {
@@ -165,7 +191,7 @@ Vector3d CirclePathTrajectory::trajAngVel(double t, double ts, const Quat &quat_
 
 double CirclePathTrajectory::getPos(char coord, double t)
 {
-    validateTime(t);
+    // validateTime(t);
     Vector3d pos = trajPos(t);
     switch (coord)
     {
@@ -185,7 +211,7 @@ double CirclePathTrajectory::getPos(char coord, double t)
 
 double CirclePathTrajectory::getLinVel(char coord, double t)
 {
-    validateTime(t);
+    // validateTime(t);
     Vector3d vel = trajLinVel(t);
     switch (coord)
     {
@@ -210,7 +236,7 @@ Quat CirclePathTrajectory::getOrient(double t)
 
 Pose CirclePathTrajectory::getPose(double t)
 {
-    validateTime(t);
+    // validateTime(t);
     Vector3d pos = trajPos(t);
     Quat orient = trajOrient(t);    
     return Pose(pos, orient);
@@ -223,7 +249,7 @@ VectorXd CirclePathTrajectory::getPoseVec(double t)
 
 VectorXd CirclePathTrajectory::getVel(double t, double ts, const Quat &prev_orient)
 {
-    validateTime(t);
+    // validateTime(t);
     VectorXd vel(6);
     vel.head(3) = trajLinVel(t);
     vel.tail(3) = trajAngVel(t, ts, prev_orient);

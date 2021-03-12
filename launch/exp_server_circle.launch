@@ -1,0 +1,12 @@
+<launch>
+    <!-- Run on robot -->
+
+    <!-- sim server node -->
+    <node pkg="mars_mot_plan" type="mars_mot_plan_exp_server_circle_node" name="mars_mot_plan_exp_server" output="screen"/>   
+
+    <!-- end effector interactive goal marker -->
+    <!-- <node pkg="mars_mot_plan" type="ee_goal_marker_node" name="ee_goal_marker_node" output="screen">
+        <param name="world_frame" value="vive_world"/>
+    </node> -->
+
+</launch>
