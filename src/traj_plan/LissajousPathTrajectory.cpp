@@ -16,11 +16,11 @@ LissajousPathTrajectory::LissajousPathTrajectory()
 LissajousPathTrajectory::LissajousPathTrajectory(Pose posei, double ti, double tf, double tb)
 :Trajectory(ti, tf)
 {
-    this->posei = posei; this->posef = posef;
+    this->posei = posei;
 
     // Parameters that define the size of the lissajous path
-    a = 1.5;    // Length
-    b = 1.5;    // Width
+    a = 1.3;    // Length
+    b = 1.3;    // Width
     c = 0.27;   // Height
 
     // Fixed parameters that define the Lissajous path
@@ -40,6 +40,11 @@ LissajousPathTrajectory::LissajousPathTrajectory(Pose posei, double ti, double t
     
     // Orientation is fixed for this path
     Quat orienti = this->posei.orientation;
+
+    // Find the final pose
+    Vector3d posf = trajPos(tf);
+    Quat orientf = trajOrient(tf);
+    posef = Pose(posf, orientf);
 }
 
 double LissajousPathTrajectory::getSAtTime(double t)
@@ -80,6 +85,11 @@ double LissajousPathTrajectory::getDsAtTime(double t)
 
 Vector3d LissajousPathTrajectory::trajPos(double t)
 {
+    if (t > getTf())
+    {
+        return posef.getPos();
+    }
+
     s = getSAtTime(t);
     Vector3d pos;
     pos(0) = posei.position(0) + a*cos(wa*(s+M_PI_2) + deltax);
@@ -90,6 +100,11 @@ Vector3d LissajousPathTrajectory::trajPos(double t)
 
 Vector3d LissajousPathTrajectory::trajLinVel(double t)
 {
+    if (t > getTf())
+    {
+        return Vector3d::Zero();
+    }
+
     s = getSAtTime(t);
     ds = getDsAtTime(t);
     Vector3d vel;
@@ -101,10 +116,20 @@ Vector3d LissajousPathTrajectory::trajLinVel(double t)
 
 Quat LissajousPathTrajectory::trajOrient(double t)
 {
+    if (t > getTf())
+    {
+        return posef.getOrientation();
+    }
+
     return posei.orientation;
 }
 
 Vector3d LissajousPathTrajectory::trajAngVel(double t)
 {
+    if (t > getTf())
+    {
+        return Vector3d::Zero();
+    }
+
     return Vector3d::Zero();
 }

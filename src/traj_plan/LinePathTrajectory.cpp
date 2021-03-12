@@ -40,7 +40,11 @@ LinePathTrajectory::LinePathTrajectory(Pose posei, Vector3d linVeli, Vector3d li
 
 Vector3d LinePathTrajectory::trajPos(double t)
 {
-    validateTime(t);
+    if (t > getTf())
+    {
+        return posef.getPos();
+    }
+
     Vector3d pos;
     pos(0) = TrajPlan::qPol(posXCoeff, t);
     pos(1) = TrajPlan::qPol(posYCoeff, t);
@@ -51,7 +55,11 @@ Vector3d LinePathTrajectory::trajPos(double t)
 
 Vector3d LinePathTrajectory::trajLinVel(double t)
 {
-    validateTime(t);
+    if (t > getTf())
+    {
+        return Vector3d::Zero();
+    }
+
     Vector3d vel;
     vel(0) = TrajPlan::dqPol(posXCoeff, t);
     vel(1) = TrajPlan::dqPol(posYCoeff, t);
@@ -62,12 +70,20 @@ Vector3d LinePathTrajectory::trajLinVel(double t)
 
 Quat LinePathTrajectory::trajOrient(double t)
 {
-    validateTime(t);
+    if (t > getTf())
+    {
+        return posef.getOrientation();
+    }
+
     return TrajPlan::quatPol(orientCoeff, getTi(), getTf(), t);
 }
 
 Vector3d LinePathTrajectory::trajAngVel(double t)
 {
-    validateTime(t);
+    if (t > getTf())
+    {
+        return Vector3d::Zero();
+    }
+
     return TrajPlan::wPol(orientCoeff, getTf(), getTf(), t);
 }

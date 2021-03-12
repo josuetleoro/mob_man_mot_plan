@@ -30,7 +30,7 @@ double Trajectory::getTf()
 
 double Trajectory::getPos(char coord, double t)
 {
-    validateTime(t);
+    // validateTime(t);
     Vector3d pos = trajPos(t);
     switch (coord)
     {
@@ -50,7 +50,7 @@ double Trajectory::getPos(char coord, double t)
 
 double Trajectory::getLinVel(char coord, double t)
 {
-    validateTime(t);
+    // validateTime(t);
     Vector3d vel = trajLinVel(t);
     switch (coord)
     {
@@ -70,7 +70,7 @@ double Trajectory::getLinVel(char coord, double t)
 
 double Trajectory::getOrientPart(char part, double t)
 {
-    validateTime(t);
+    // validateTime(t);
     Quat Q = trajOrient(t);
     double quatPart;
     switch(part)
@@ -103,7 +103,7 @@ Quat Trajectory::getOrient(double t)
 
 double Trajectory::getAngVel(char coord, double t)
 {
-    validateTime(t);
+    // validateTime(t);
     Vector3d w = trajAngVel(t);
     switch (coord)
     {
@@ -123,7 +123,7 @@ double Trajectory::getAngVel(char coord, double t)
 
 Pose Trajectory::getPose(double t)
 {
-    validateTime(t);
+    // validateTime(t);
     Vector3d pos = trajPos(t);
     Quat orient = trajOrient(t);    
     return Pose(pos, orient);
@@ -136,7 +136,7 @@ VectorXd Trajectory::getPoseVec(double t)
 
 VectorXd Trajectory::getVel(double t)
 {
-    validateTime(t);
+    // validateTime(t);
     VectorXd vel(6);
     vel.head(3) = trajLinVel(t);
     vel.tail(3) = trajAngVel(t);

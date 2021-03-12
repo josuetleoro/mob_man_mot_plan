@@ -86,6 +86,11 @@ double EllipticPathTrajectory::getDsAtTime(double t)
 
 Vector3d EllipticPathTrajectory::trajPos(double t)
 {
+    if (t > getTf())
+    {
+        return posef.getPos();
+    }
+
     s = getSAtTime(t);
     Vector3d pos;
     pos(0) = a*cos(s) + center(0);
@@ -96,6 +101,11 @@ Vector3d EllipticPathTrajectory::trajPos(double t)
 
 Vector3d EllipticPathTrajectory::trajLinVel(double t)
 {
+    if (t > getTf())
+    {
+        return Vector3d::Zero();
+    }
+
     s = getSAtTime(t);
     ds = getDsAtTime(t);
     Vector3d vel;
@@ -107,10 +117,20 @@ Vector3d EllipticPathTrajectory::trajLinVel(double t)
 
 Quat EllipticPathTrajectory::trajOrient(double t)
 {
+    if (t > getTf())
+    {
+        return posef.getOrientation();
+    }
+
     return TrajPlan::quatPol(orientCoeff, getTi(), getTf(), t);
 }
 
 Vector3d EllipticPathTrajectory::trajAngVel(double t)
 {
+    if (t > getTf())
+    {
+        return Vector3d::Zero();
+    }
+
     return TrajPlan::wPol(orientCoeff, getTi(), getTf(), t);
 }
