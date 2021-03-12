@@ -32,10 +32,10 @@ template <class MatT>
 Eigen::Matrix<typename MatT::Scalar, MatT::ColsAtCompileTime, MatT::RowsAtCompileTime>
 pinv(const MatT &mat, typename MatT::Scalar tolerance = typename MatT::Scalar{1e-4}); // choose appropriately
 
-class MarsPoseTrajActionSim
+class MarsTrajAction
 {
 public:
-    MarsPoseTrajActionSim(std::string name) : as(nh_, name, boost::bind(&MarsPoseTrajActionSim::executeCB, this, _1), false),
+    MarsTrajAction(std::string name) : as(nh_, name, boost::bind(&MarsTrajAction::executeCB, this, _1), false),
                                               action_name(name)
     {
         freq = 50.0;
@@ -75,7 +75,7 @@ public:
             ros::SubscribeOptions::create<sensor_msgs::JointState>(
                 "/joint_states", // topic name
                 10,              // queue length
-                bind(&MarsPoseTrajActionSim::jointStateCB, this, _1),
+                bind(&MarsTrajAction::jointStateCB, this, _1),
                 ros::VoidPtr(),     // tracked object, we don't need one thus NULL
                 &joint_states_queue // pointer to callback queue object
             );
@@ -87,7 +87,7 @@ public:
         async_spinner->start();
     }
 
-    ~MarsPoseTrajActionSim(void)
+    ~MarsTrajAction(void)
     {
         async_spinner->stop();
     }
@@ -436,7 +436,8 @@ public:
         cout << "Final position error norm: " << finalPosErrorNorm << endl;
         cout << "Final orientation error norm: " << finalPoseError.tail(3).norm() << endl;
 
-        if (abs(finalPosErrorNorm) < 0.2)
+        double finalTimeDiff = abs(tf - trajDuration);
+        if (abs(finalTimeDiff) <= 1.5*ts)
         {
             ROS_INFO_STREAM("Motion planning completed. Number of iterations: " << k);
             ROS_INFO("%s: Succeeded", action_name.c_str());
@@ -609,8 +610,9 @@ private:
         string joint_pos_file_path = files_dir + "joint_pos.csv";
         string joint_vel_file_path = files_dir + "joint_vel.csv"; // Joint quasi velocities
         string col_dist_file_path = files_dir + "col_dist.csv";
+        string ee_poses_file_path = files_dir + "ee_poses.csv";
 
-        fstream traj_param_fs, time_fs, manip_fs, pose_error_fs, joint_pos_fs, joint_vel_fs, col_dist_fs;
+        fstream traj_param_fs, time_fs, manip_fs, pose_error_fs, joint_pos_fs, joint_vel_fs, col_dist_fs, ee_poses_fs;
 
         traj_param_fs.open(traj_param_file_path.c_str(), std::fstream::out);
         time_fs.open(time_file_path.c_str(), std::fstream::out);
@@ -619,6 +621,7 @@ private:
         joint_pos_fs.open(joint_pos_file_path.c_str(), std::fstream::out);
         joint_vel_fs.open(joint_vel_file_path.c_str(), std::fstream::out); // Joint quasi velocities
         col_dist_fs.open(col_dist_file_path.c_str(), std::fstream::out);   // elbowDist, wristDist, wristHeight
+        ee_poses_fs.open(ee_poses_file_path.c_str(), std::fstream::out);
 
         //Save trajectory parameters
         // pose0 (x,y,z,qw,qx,qy,qz)
@@ -704,6 +707,15 @@ private:
             col_dist_fs << std::to_string(elbowDistVector.at(k)) << ","
                         << std::to_string(wristDistVector.at(k)) << ","
                         << std::to_string(wristHeightVector.at(k)) << "\n";
+
+            // ee poses
+            ee_poses_fs << std::to_string(pose.at(k).position(0)) << ","
+                        << std::to_string(pose.at(k).position(1)) << ","
+                        << std::to_string(pose.at(k).position(2)) << ","
+                        << std::to_string(pose.at(k).orientation.w) << ","
+                        << std::to_string(pose.at(k).orientation.x) << ","
+                        << std::to_string(pose.at(k).orientation.y) << ","
+                        << std::to_string(pose.at(k).orientation.z) << "\n";
         }
         traj_param_fs.close();
         time_fs.close();
@@ -712,6 +724,7 @@ private:
         joint_pos_fs.close();
         joint_vel_fs.close();
         col_dist_fs.close();
+        ee_poses_fs.close();
 
         // Joint constraints
         string joint_constraints_file_path = files_dir + "joint_constraints.csv";
@@ -733,7 +746,7 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh_;
 
-    MarsPoseTrajActionSim trajAction(ros::this_node::getName());
+    MarsTrajAction trajAction(ros::this_node::getName());
 
     ros::spin();
 
